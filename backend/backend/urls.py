@@ -6,7 +6,7 @@ from rest_framework import permissions
 from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
 
-# Schema view for Swagger documentation (simplified)
+# Schema view for Swagger documentation (updated)
 schema_view = get_schema_view(
     openapi.Info(
         title="Plant API",
@@ -15,13 +15,15 @@ schema_view = get_schema_view(
     ),
     public=True,
     permission_classes=[permissions.AllowAny],
+    url=settings.API_URL if hasattr(settings, 'API_URL') else None,  # Set base URL if configured
+    patterns=[path('api/', include('api.urls'))],  # This tells Swagger where to find the API endpoints
 )
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include('api.urls')),
     
-    # Swagger documentation URLs (simplified)
+    # Swagger documentation URLs
     path('swagger/', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
     path('redoc/', schema_view.with_ui('redoc', cache_timeout=0), name='schema-redoc'),
 ]
