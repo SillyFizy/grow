@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../widgets/BottomNavBar.dart';
+import '../utils/routes.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -7,7 +8,7 @@ class HomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     print('Building HomeScreen');
-    
+
     return Scaffold(
       body: SafeArea(
         child: Column(
@@ -47,7 +48,7 @@ class HomeScreen extends StatelessWidget {
                     // Grid of category cards
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                      child: _buildCategoriesGrid(),
+                      child: _buildCategoriesGrid(context),
                     ),
                     const SizedBox(height: 24),
                     // Campaign section
@@ -215,16 +216,40 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildCategoriesGrid() {
+  Widget _buildCategoriesGrid(BuildContext context) {
     print('Building categories grid in HomeScreen');
-    
+
     final categories = [
-      {'title': 'النباتات الجنينة', 'image': 'homescreen_p1.png'},
-      {'title': 'النباتات السامة', 'image': 'homescreen_p2.png'},
-      {'title': 'النباتات المعمرة', 'image': 'homescreen_p3.png'},
-      {'title': 'منتجات طبيعية', 'image': 'homescreen_p4.png'},
-      {'title': 'تحت منطق الزراع', 'image': 'homescreen_p5.png'},
-      {'title': 'منتجات صديقة البيئة', 'image': 'homescreen_p6.png'},
+      {
+        'title': 'النباتات الجنينة',
+        'image': 'homescreen_p1.png',
+        'detailImage': 'homescreen_p1.png'
+      },
+      {
+        'title': 'النباتات السامة',
+        'image': 'homescreen_p2.png',
+        'detailImage': 'homescreen_p2.png'
+      },
+      {
+        'title': 'النباتات المعمرة',
+        'image': 'homescreen_p3.png',
+        'detailImage': 'homescreen_p3.png'
+      },
+      {
+        'title': 'منتجات طبيعية',
+        'image': 'homescreen_p4.png',
+        'detailImage': 'homescreen_p4.png'
+      },
+      {
+        'title': 'تحت منطق الزراع',
+        'image': 'homescreen_p5.png',
+        'detailImage': 'homescreen_p5.png'
+      },
+      {
+        'title': 'منتجات صديقة البيئة',
+        'image': 'homescreen_p6.png',
+        'detailImage': 'homescreen_p6.png'
+      },
     ];
 
     return GridView.builder(
@@ -238,59 +263,70 @@ class HomeScreen extends StatelessWidget {
       ),
       itemCount: categories.length,
       itemBuilder: (context, index) {
-        return Column(
-          children: [
-            // Category image with shadow
-            Expanded(
-              child: Container(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.grey.withOpacity(0.2),
-                      blurRadius: 6,
-                      spreadRadius: 1,
-                      offset: const Offset(0, 2),
+        return GestureDetector(
+          onTap: () {
+            print('Category tapped: ${categories[index]['title']}');
+            // Navigate to plant details screen with category details
+            Routes.navigateToPlantDetails(
+                context,
+                categories[index]['title'] as String,
+                'assets/images/${categories[index]['detailImage']}');
+          },
+          child: Column(
+            children: [
+              // Category image with shadow
+              Expanded(
+                child: Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.grey.withOpacity(0.2),
+                        blurRadius: 6,
+                        spreadRadius: 1,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: Image.asset(
+                      'assets/images/${categories[index]['image']}',
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                      errorBuilder: (context, error, stackTrace) {
+                        print(
+                            'Error loading category image ${categories[index]['image']}: $error');
+                        return Container(
+                          decoration: BoxDecoration(
+                            color: Colors.green.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: const Center(
+                            child: Icon(Icons.eco, color: Colors.green),
+                          ),
+                        );
+                      },
                     ),
-                  ],
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(16),
-                  child: Image.asset(
-                    'assets/images/${categories[index]['image']}',
-                    fit: BoxFit.cover,
-                    width: double.infinity,
-                    errorBuilder: (context, error, stackTrace) {
-                      print('Error loading category image ${categories[index]['image']}: $error');
-                      return Container(
-                        decoration: BoxDecoration(
-                          color: Colors.green.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: const Center(
-                          child: Icon(Icons.eco, color: Colors.green),
-                        ),
-                      );
-                    },
                   ),
                 ),
               ),
-            ),
-            // Category title below the image
-            Padding(
-              padding: const EdgeInsets.only(top: 6.0),
-              child: Text(
-                categories[index]['title'] as String,
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
+              // Category title below the image
+              Padding(
+                padding: const EdgeInsets.only(top: 6.0),
+                child: Text(
+                  categories[index]['title'] as String,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                textAlign: TextAlign.center,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
               ),
-            ),
-          ],
+            ],
+          ),
         );
       },
     );
