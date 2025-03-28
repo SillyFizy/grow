@@ -10,6 +10,7 @@ dependencies:
   flutter_localizations:
     sdk: flutter
   shared_preferences: ^2.3.2
+  google_fonts: ^6.1.0
 
 dev_dependencies:
   flutter_test:
@@ -21,3 +22,7 @@ flutter:
   assets:
     - assets/images/login-bg.png
     - assets/images/login-logo.png
+  fonts:
+    - family: Rakkas
+      fonts:
+        - asset: assets/fonts/Rakkas-Regular.ttf
