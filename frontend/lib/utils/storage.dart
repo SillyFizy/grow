@@ -15,7 +15,7 @@ class Storage {
     _prefs = await SharedPreferences.getInstance();
     // Add demo user if not exists
     if (!_prefs.containsKey(_userKey)) {
-      await _prefs.setString(_userKey, 'demo:password123');
+      await _prefs.setString(_userKey, 'demo:123');
     }
   }
 

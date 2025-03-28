@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
 
-class BottomNavBar extends StatefulWidget {
-  const BottomNavBar({super.key});
+class BottomNavBar extends StatelessWidget {
+  final int selectedIndex;
 
-  @override
-  State<BottomNavBar> createState() => _BottomNavBarState();
-}
-
-class _BottomNavBarState extends State<BottomNavBar> {
-  int _selectedIndex = 3;
+  const BottomNavBar({
+    super.key,
+    this.selectedIndex = 3,
+  });
 
   @override
   Widget build(BuildContext context) {
+    print('Building BottomNavBar with selectedIndex: $selectedIndex');
+
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -25,11 +25,35 @@ class _BottomNavBarState extends State<BottomNavBar> {
         ],
       ),
       child: BottomNavigationBar(
-        currentIndex: _selectedIndex,
+        currentIndex: selectedIndex,
         onTap: (index) {
-          setState(() {
-            _selectedIndex = index;
-          });
+          print('Tab tapped: $index, current selectedIndex: $selectedIndex');
+
+          // Only navigate if tapping a different tab
+          if (index != selectedIndex) {
+            print('Navigating to tab $index');
+
+            switch (index) {
+              case 0: // Profile
+                print('Would navigate to Profile - not implemented');
+                // TODO: Implement profile navigation when available
+                break;
+              case 1: // Weather/Categories
+                print('Navigating to Categories route');
+                Navigator.of(context).pushReplacementNamed('/categories');
+                break;
+              case 2: // Search
+                print('Would navigate to Search - not implemented');
+                // TODO: Implement search navigation when available
+                break;
+              case 3: // Home
+                print('Navigating to Home route');
+                Navigator.of(context).pushReplacementNamed('/');
+                break;
+            }
+          } else {
+            print('Already on tab $index, not navigating');
+          }
         },
         type: BottomNavigationBarType.fixed,
         selectedItemColor: Theme.of(context).primaryColor,

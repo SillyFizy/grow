@@ -6,6 +6,8 @@ class HomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    print('Building HomeScreen');
+    
     return Scaffold(
       body: SafeArea(
         child: Column(
@@ -23,6 +25,7 @@ class HomeScreen extends StatelessWidget {
                           'assets/images/login-logo.png',
                           height: 100,
                           errorBuilder: (context, error, stackTrace) {
+                            print('Error loading logo in HomeScreen: $error');
                             return const SizedBox(height: 100);
                           },
                         ),
@@ -55,7 +58,12 @@ class HomeScreen extends StatelessWidget {
               ),
             ),
             // Bottom navigation bar
-            const BottomNavBar(),
+            Builder(
+              builder: (context) {
+                print('Building BottomNavBar in HomeScreen with index 3');
+                return const BottomNavBar(selectedIndex: 3);
+              },
+            ),
           ],
         ),
       ),
@@ -155,6 +163,7 @@ class HomeScreen extends StatelessWidget {
                 'assets/images/homescreen_banner.png',
                 fit: BoxFit.cover,
                 errorBuilder: (context, error, stackTrace) {
+                  print('Error loading banner image: $error');
                   return Container(
                     color: Colors.green.withOpacity(0.1),
                     child: const Center(
@@ -207,6 +216,8 @@ class HomeScreen extends StatelessWidget {
   }
 
   Widget _buildCategoriesGrid() {
+    print('Building categories grid in HomeScreen');
+    
     final categories = [
       {'title': 'النباتات الجنينة', 'image': 'homescreen_p1.png'},
       {'title': 'النباتات السامة', 'image': 'homescreen_p2.png'},
@@ -250,6 +261,7 @@ class HomeScreen extends StatelessWidget {
                     fit: BoxFit.cover,
                     width: double.infinity,
                     errorBuilder: (context, error, stackTrace) {
+                      print('Error loading category image ${categories[index]['image']}: $error');
                       return Container(
                         decoration: BoxDecoration(
                           color: Colors.green.withOpacity(0.1),
