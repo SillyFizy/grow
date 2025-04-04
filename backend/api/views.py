@@ -10,16 +10,19 @@ from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
 from .models import (
-    Profile, Category, Post, 
+    Profile, Category, Post,
     PlantFamily, Plant,
-    MaleFlower, FemaleFlower, HermaphroditeFlower
+    MaleFlower, FemaleFlower, HermaphroditeFlower, PlantSubmission
 )
 from .serializers import (
     UserRegistrationSerializer, UserLoginSerializer,
-    PlantFamilySerializer, PlantListSerializer, PlantDetailSerializer
+    PlantFamilySerializer, PlantListSerializer, PlantDetailSerializer,
+    PlantSubmissionSerializer
 )
 
 # Authentication views
+
+
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def register_user(request):
@@ -32,6 +35,7 @@ def register_user(request):
             'access': str(refresh.access_token),
         }, status=status.HTTP_201_CREATED)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
@@ -52,6 +56,8 @@ def login_user(request):
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 # Plant Family views
+
+
 class PlantFamilyList(generics.ListAPIView):
     queryset = PlantFamily.objects.all()
     serializer_class = PlantFamilySerializer
@@ -60,25 +66,32 @@ class PlantFamilyList(generics.ListAPIView):
     search_fields = ['name_arabic', 'name_english', 'name_scientific']
     ordering_fields = ['name_arabic', 'name_english']
 
+
 class PlantFamilyDetail(generics.RetrieveAPIView):
     queryset = PlantFamily.objects.all()
     serializer_class = PlantFamilySerializer
     permission_classes = [AllowAny]
 
 # Plant views
+
+
 class PlantList(generics.ListAPIView):
     queryset = Plant.objects.all()
     serializer_class = PlantListSerializer
     permission_classes = [AllowAny]
-    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ['family', 'cotyledon_type', 'flower_type', 'classification']
+    filter_backends = [DjangoFilterBackend,
+                       filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = ['family', 'cotyledon_type',
+                        'flower_type', 'classification']
     search_fields = ['name_arabic', 'name_english', 'name_scientific']
     ordering_fields = ['id', 'name_arabic', 'name_scientific']
+
 
 class PlantDetail(generics.RetrieveAPIView):
     queryset = Plant.objects.all()
     serializer_class = PlantDetailSerializer
     permission_classes = [AllowAny]
+
 
 @api_view(['GET'])
 @permission_classes([AllowAny])
@@ -87,3 +100,101 @@ def plants_by_family(request, family_id):
     plants = Plant.objects.filter(family_id=family_id)
     serializer = PlantListSerializer(plants, many=True)
     return Response(serializer.data)
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def register_user(request):
+    serializer = UserRegistrationSerializer(data=request.data)
+    if serializer.is_valid():
+        user = serializer.save()
+        refresh = RefreshToken.for_user(user)
+        return Response({
+            'refresh': str(refresh),
+            'access': str(refresh.access_token),
+        }, status=status.HTTP_201_CREATED)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def login_user(request):
+    serializer = UserLoginSerializer(data=request.data)
+    if serializer.is_valid():
+        user = authenticate(
+            username=serializer.validated_data['username'],
+            password=serializer.validated_data['password']
+        )
+        if user:
+            refresh = RefreshToken.for_user(user)
+            return Response({
+                'refresh': str(refresh),
+                'access': str(refresh.access_token),
+            })
+        return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+# Plant Family views
+
+
+class PlantFamilyList(generics.ListAPIView):
+    queryset = PlantFamily.objects.all()
+    serializer_class = PlantFamilySerializer
+    permission_classes = [AllowAny]
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ['name_arabic', 'name_english', 'name_scientific']
+    ordering_fields = ['name_arabic', 'name_english']
+
+
+class PlantFamilyDetail(generics.RetrieveAPIView):
+    queryset = PlantFamily.objects.all()
+    serializer_class = PlantFamilySerializer
+    permission_classes = [AllowAny]
+
+# Plant views
+
+
+class PlantList(generics.ListAPIView):
+    queryset = Plant.objects.all()
+    serializer_class = PlantListSerializer
+    permission_classes = [AllowAny]
+    filter_backends = [DjangoFilterBackend,
+                       filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = ['family', 'cotyledon_type',
+                        'flower_type', 'classification']
+    search_fields = ['name_arabic', 'name_english', 'name_scientific']
+    ordering_fields = ['id', 'name_arabic', 'name_scientific']
+
+
+class PlantDetail(generics.RetrieveAPIView):
+    queryset = Plant.objects.all()
+    serializer_class = PlantDetailSerializer
+    permission_classes = [AllowAny]
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def plants_by_family(request, family_id):
+    """Get all plants belonging to a specific family"""
+    plants = Plant.objects.filter(family_id=family_id)
+    serializer = PlantListSerializer(plants, many=True)
+    return Response(serializer.data)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+@swagger_auto_schema(
+    request_body=PlantSubmissionSerializer,
+    operation_description="Submit a new plant for review",
+    responses={201: PlantSubmissionSerializer()}
+)
+def submit_plant(request):
+    """
+    Endpoint for users to submit plant data for review
+    """
+    serializer = PlantSubmissionSerializer(
+        data=request.data, context={'request': request})
+    if serializer.is_valid():
+        submission = serializer.save()
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
