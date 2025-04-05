@@ -15,7 +15,7 @@ urlpatterns = [
     path('auth/token/verify/', TokenVerifyView.as_view(), name='token_verify'),
     path('auth/token/blacklist/',
          TokenBlacklistView.as_view(), name='token_blacklist'),
-    
+
     # Authentication endpoints
     path('auth/register/', views.register_user, name='register'),
     path('auth/login/', views.login_user, name='login'),
@@ -34,4 +34,7 @@ urlpatterns = [
 
     # Plant submission endpoint
     path('plants/submit/', views.submit_plant, name='submit-plant'),
+
+    # Search endpoint
+    path('plants/search/', views.search_plants, name='search-plants'),
 ]

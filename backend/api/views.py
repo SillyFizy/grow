@@ -20,6 +20,7 @@ from .serializers import (
     PlantSubmissionSerializer, MaleFlowerSubmissionSerializer,
     FemaleFlowerSubmissionSerializer, HermaphroditeFlowerSubmissionSerializer
 )
+from django.db import models
 
 # Authentication views
 
@@ -206,3 +207,50 @@ def submit_plant(request):
         submission = serializer.save()
         return Response(serializer.data, status=status.HTTP_201_CREATED)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def search_plants(request):
+    """
+    Search for plants by name (Arabic, English, Scientific) or classification
+
+    Query parameters:
+    - q: General search term for either name or classification
+    - name: Search specifically in plant names (Arabic, English, Scientific)
+    - classification: Filter specifically by classification type
+    """
+    # General search parameter that searches across name and classification
+    query = request.query_params.get('q', '')
+
+    # Specific search parameters
+    name_query = request.query_params.get('name', '')
+    classification = request.query_params.get('classification', '')
+
+    queryset = Plant.objects.all()
+
+    # If general query parameter is provided, search across all fields
+    if query:
+        queryset = queryset.filter(
+            models.Q(name_arabic__icontains=query) |
+            models.Q(name_english__icontains=query) |
+            models.Q(name_scientific__icontains=query) |
+            models.Q(classification__icontains=query)
+        )
+
+    # If specific name query is provided
+    if name_query:
+        queryset = queryset.filter(
+            models.Q(name_arabic__icontains=name_query) |
+            models.Q(name_english__icontains=name_query) |
+            models.Q(name_scientific__icontains=name_query)
+        )
+
+    # If specific classification filter is provided
+    if classification:
+        queryset = queryset.filter(classification__icontains=classification)
+
+    # Use the existing PlantListSerializer
+    serializer = PlantListSerializer(
+        queryset, many=True, context={'request': request})
+    return Response(serializer.data)
