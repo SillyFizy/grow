@@ -167,7 +167,7 @@ hermaphrodite_flower_example = {
 @permission_classes([IsAuthenticated])
 @swagger_auto_schema(
     request_body=PlantSubmissionSerializer,
-    operation_description="Submit a new plant for review. The request body should include plant details and optionally flower characteristics based on the flower_type.",
+    operation_description="Submit a new plant for review. The request body should include plant details including description, flower characteristics based on the flower_type, and optional images.",
     responses={201: PlantSubmissionSerializer()},
     examples={
         'application/json': {
@@ -191,7 +191,10 @@ def submit_plant(request):
 
     Optional fields:
     - name_english: Plant name in English
+    - description: Detailed description of the plant
     - seed_shape_english: Description of seed shape in English
+    - images: List of image files for the plant
+    - image_captions: List of captions for the images (must match length of images list)
 
     Based on flower_type, include either:
     - male_flower and female_flower (when flower_type is 'BOTH')

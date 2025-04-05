@@ -94,6 +94,16 @@ class Plant(models.Model):
         PlantFamily, on_delete=models.PROTECT, verbose_name="Family / العائلة")
     classification = models.CharField(
         max_length=100, verbose_name="Classification / التصنيف")
+    description = models.TextField(
+        blank=True, verbose_name="Description / الوصف")
+
+    # Add image field directly to the Plant model
+    image = models.ImageField(
+        upload_to='plants/',
+        null=True,
+        blank=True,
+        verbose_name="Plant Image / صورة النبات"
+    )
 
     # Morphological Characteristics
     seed_shape_arabic = models.CharField(
@@ -116,6 +126,64 @@ class Plant(models.Model):
 
     def __str__(self):
         return f"{self.name_arabic} ({self.name_scientific})"
+
+
+class PlantSubmission(models.Model):
+    """Model for user-submitted plants that need approval"""
+    STATUS_CHOICES = [
+        ('pending', 'Pending Review'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected')
+    ]
+
+    # Basic Information
+    name_arabic = models.CharField(
+        max_length=100, verbose_name="Arabic Name / الاسم بالعربي")
+    name_english = models.CharField(
+        max_length=100, blank=True, verbose_name="English Name / الاسم بالانجليزي")
+    name_scientific = models.CharField(
+        max_length=100, verbose_name="Scientific Name / الاسم العلمي")
+    family = models.ForeignKey(
+        PlantFamily, on_delete=models.PROTECT, verbose_name="Family / العائلة")
+    classification = models.CharField(
+        max_length=100, verbose_name="Classification / التصنيف")
+    description = models.TextField(
+        blank=True, verbose_name="Description / الوصف")  # New field
+
+    # Morphological Characteristics
+    seed_shape_arabic = models.CharField(
+        max_length=100, verbose_name="Seed Shape (Arabic) / شكل البذرة")
+    seed_shape_english = models.CharField(
+        max_length=100, blank=True, verbose_name="Seed Shape (English)")
+    cotyledon_type = models.CharField(
+        max_length=4,
+        choices=Plant.COTYLEDON_CHOICES,
+        verbose_name="Cotyledon Type / نوع الفلقة"
+    )
+    flower_type = models.CharField(
+        max_length=20,
+        choices=Plant.FLOWER_TYPE_CHOICES,
+        verbose_name="Flower Type / نوع الزهرة"
+    )
+
+    # Submission metadata
+    submitter = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name='plant_submissions')
+    submitted_at = models.DateTimeField(auto_now_add=True)
+    status = models.CharField(
+        max_length=10, choices=STATUS_CHOICES, default='pending')
+    admin_notes = models.TextField(blank=True)
+
+    # Additional details as JSON
+    additional_details = models.JSONField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-submitted_at']
+        verbose_name = "Plant Submission"
+        verbose_name_plural = "Plant Submissions"
+
+    def __str__(self):
+        return f"{self.name_arabic} - {self.get_status_display()}"
 
 
 class FlowerParts(models.Model):
@@ -299,8 +367,10 @@ class PlantSubmission(models.Model):
         PlantFamily, on_delete=models.PROTECT, verbose_name="Family / العائلة")
     classification = models.CharField(
         max_length=100, verbose_name="Classification / التصنيف")
+    description = models.TextField(
+        blank=True, verbose_name="Description / الوصف")  # New field
 
-    # Morphological Characteristics
+    # Morphological Characteristics (existing fields)
     seed_shape_arabic = models.CharField(
         max_length=100, verbose_name="Seed Shape (Arabic) / شكل البذرة")
     seed_shape_english = models.CharField(
@@ -316,7 +386,7 @@ class PlantSubmission(models.Model):
         verbose_name="Flower Type / نوع الزهرة"
     )
 
-    # Submission metadata
+    # Submission metadata (existing fields)
     submitter = models.ForeignKey(
         User, on_delete=models.CASCADE, related_name='plant_submissions')
     submitted_at = models.DateTimeField(auto_now_add=True)

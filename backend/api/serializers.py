@@ -139,14 +139,24 @@ class PlantListSerializer(serializers.ModelSerializer):
         help_text="Plant classification (e.g., 'بري', 'اقتصادي')")
     flower_type = serializers.CharField(
         help_text="Type of flower (BOTH or HERMAPHRODITE)")
+    image_url = serializers.SerializerMethodField(
+        help_text="URL of the plant image if available")
 
     class Meta:
         model = Plant
         fields = ('id', 'name_arabic', 'name_english', 'name_scientific',
-                  'family_name', 'classification', 'flower_type')
+                  'family_name', 'classification', 'flower_type', 'image_url')
 
     def get_family_name(self, obj):
         return obj.family.name_arabic
+
+    def get_image_url(self, obj):
+        if obj.image:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.image.url)
+            return obj.image.url
+        return None
 
 
 class PlantDetailSerializer(serializers.ModelSerializer):
@@ -160,6 +170,8 @@ class PlantDetailSerializer(serializers.ModelSerializer):
         read_only=True, help_text="Female flower characteristics if flower_type is BOTH")
     hermaphrodite_flower = HermaphroditeFlowerSerializer(
         read_only=True, help_text="Hermaphrodite flower characteristics if flower_type is HERMAPHRODITE")
+    image_url = serializers.SerializerMethodField(
+        help_text="URL of the plant image if available")
 
     name_arabic = serializers.CharField(help_text="Plant name in Arabic")
     name_english = serializers.CharField(
@@ -168,6 +180,8 @@ class PlantDetailSerializer(serializers.ModelSerializer):
         help_text="Scientific name of the plant")
     classification = serializers.CharField(
         help_text="Plant classification (e.g., 'بري', 'اقتصادي')")
+    description = serializers.CharField(
+        help_text="Plant description", allow_blank=True)
     seed_shape_arabic = serializers.CharField(
         help_text="Seed shape description in Arabic")
     seed_shape_english = serializers.CharField(
@@ -180,6 +194,14 @@ class PlantDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = Plant
         fields = '__all__'
+
+    def get_image_url(self, obj):
+        if obj.image:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.image.url)
+            return obj.image.url
+        return None
 
 # New serializers for plant submissions
 
@@ -223,16 +245,36 @@ class PlantSubmissionSerializer(serializers.ModelSerializer):
     hermaphrodite_flower = HermaphroditeFlowerSubmissionSerializer(
         required=False, write_only=True)
 
+    # Field for image upload
+    image = serializers.ImageField(
+        required=False,
+        write_only=True,
+        help_text="Plant image to upload"
+    )
+
     class Meta:
         model = PlantSubmission
         fields = [
             'id', 'name_arabic', 'name_english', 'name_scientific', 'family',
-            'classification', 'seed_shape_arabic', 'seed_shape_english',
+            'classification', 'description', 'seed_shape_arabic', 'seed_shape_english',
             'cotyledon_type', 'flower_type', 'submitter', 'submitted_at',
-            'status', 'admin_notes', 'male_flower', 'female_flower', 'hermaphrodite_flower'
+            'status', 'admin_notes', 'male_flower', 'female_flower',
+            'hermaphrodite_flower', 'image'
         ]
         read_only_fields = ['id', 'submitter',
                             'submitted_at', 'status', 'admin_notes']
+
+    def validate(self, data):
+        # Validate that if image_captions is provided, it has the same length as images
+        images = data.get('images', [])
+        captions = data.get('image_captions', [])
+
+        if captions and len(captions) != len(images):
+            raise serializers.ValidationError({
+                'image_captions': 'Number of captions must match number of images'
+            })
+
+        return data
 
     def create(self, validated_data):
         # Extract flower data
@@ -240,6 +282,9 @@ class PlantSubmissionSerializer(serializers.ModelSerializer):
         female_flower_data = validated_data.pop('female_flower', None)
         hermaphrodite_flower_data = validated_data.pop(
             'hermaphrodite_flower', None)
+
+        # Extract image data
+        image = validated_data.pop('image', None)
 
         # Store flower details in additional_details field
         additional_details = {}
@@ -249,6 +294,20 @@ class PlantSubmissionSerializer(serializers.ModelSerializer):
             additional_details['female_flower'] = female_flower_data
         if hermaphrodite_flower_data:
             additional_details['hermaphrodite_flower'] = hermaphrodite_flower_data
+
+        # Store image info in additional_details
+        if image:
+            from django.core.files.storage import default_storage
+            from django.core.files.base import ContentFile
+            import os
+
+            # Store image in a temporary folder
+            filename = f"submission_{os.path.basename(image.name)}"
+            path = default_storage.save(
+                f"temp_submissions/{filename}", ContentFile(image.read()))
+
+            # Store the path in the additional details
+            additional_details['image_storage'] = path
 
         validated_data['additional_details'] = additional_details
 

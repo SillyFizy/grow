@@ -1,10 +1,15 @@
-# backend/api/admin.py
+from django import forms
 from django.contrib import admin
 from django.utils.html import format_html, mark_safe
 from django.utils import timezone
 from django.contrib import messages
 from django.db import connection, models, transaction
 import traceback
+import os
+from django.core.files.storage import default_storage
+from django.core.files.base import ContentFile
+from django.conf import settings
+
 from .models import (
     Profile, Category, Post,
     PlantFamily, Plant,
@@ -43,10 +48,26 @@ class PlantFamilyAdmin(admin.ModelAdmin):
 @admin.register(Plant)
 class PlantAdmin(admin.ModelAdmin):
     list_display = ('id', 'name_arabic', 'name_scientific',
-                    'family', 'classification', 'flower_type')
+                    'family', 'classification', 'flower_type', 'image_preview')
     list_filter = ('family', 'cotyledon_type', 'flower_type')
-    search_fields = ('name_arabic', 'name_english', 'name_scientific')
+    search_fields = ('name_arabic', 'name_english',
+                     'name_scientific', 'description')
     ordering = ('id',)
+    fieldsets = (
+        ('Basic Information', {
+            'fields': ('name_arabic', 'name_english', 'name_scientific', 'family',
+                       'classification', 'description', 'image')
+        }),
+        ('Morphological Characteristics', {
+            'fields': ('seed_shape_arabic', 'seed_shape_english', 'cotyledon_type', 'flower_type')
+        }),
+    )
+
+    def image_preview(self, obj):
+        if obj.image:
+            return format_html('<img src="{}" width="50" height="auto" />', obj.image.url)
+        return "No Image"
+    image_preview.short_description = 'Image'
 
 
 class FlowerPartsAdmin(admin.ModelAdmin):
@@ -125,15 +146,114 @@ class HermaphroditeFlowerAdmin(FlowerPartsAdmin):
     )
 
 
+class PlantSubmissionForm(forms.ModelForm):
+    # Add an image upload field that's not part of the model
+    image = forms.ImageField(required=False, label="Plant Image / صورة النبات")
+
+    class Meta:
+        model = PlantSubmission
+        fields = '__all__'
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+
+        # Handle the image upload
+        image = self.cleaned_data.get('image')
+        if image:
+            # Store image in a temporary folder
+            filename = f"submission_{os.path.basename(image.name)}"
+            path = default_storage.save(
+                f"temp_submissions/{filename}", ContentFile(image.read()))
+
+            # Add the image path to additional_details
+            if not instance.additional_details:
+                instance.additional_details = {}
+
+            instance.additional_details['image_storage'] = path
+
+        if commit:
+            instance.save()
+
+        return instance
+
+
 @admin.register(PlantSubmission)
 class PlantSubmissionAdmin(admin.ModelAdmin):
+    form = PlantSubmissionForm  # Use our custom form
     list_display = ('name_arabic', 'name_scientific', 'family',
                     'submitter', 'submitted_at', 'status')
     list_filter = ('status', 'family', 'cotyledon_type', 'flower_type')
     search_fields = ('name_arabic', 'name_english',
-                     'name_scientific', 'submitter__username')
-    readonly_fields = ('submitted_at', 'additional_details_formatted')
+                     'name_scientific', 'submitter__username', 'description')
+    readonly_fields = (
+        'submitted_at', 'additional_details_formatted', 'submission_image_preview')
     actions = ['approve_submissions', 'reject_submissions']
+
+    fieldsets = (
+        ('Basic Information', {
+            'fields': ('name_arabic', 'name_english', 'name_scientific', 'family', 'classification', 'description')
+        }),
+        ('Morphological Characteristics', {
+            'fields': ('seed_shape_arabic', 'seed_shape_english', 'cotyledon_type', 'flower_type')
+        }),
+        ('Image', {
+            'fields': ('image', 'submission_image_preview')
+        }),
+        ('Submission Details', {
+            'fields': ('submitter', 'submitted_at', 'status', 'admin_notes')
+        }),
+        ('Additional Information', {
+            'fields': ('additional_details_formatted',)
+        }),
+    )
+
+    def submission_image_preview(self, obj):
+        """Display preview of uploaded image in the admin"""
+        if not obj.additional_details or 'image_storage' not in obj.additional_details:
+            return "No image uploaded"
+
+        path = obj.additional_details['image_storage']
+        if isinstance(path, str) and path:  # Check if path is a string and not empty
+            from django.conf import settings
+            return format_html('<img src="{}{}" style="max-width:300px; max-height:300px; object-fit:contain;" />',
+                               settings.MEDIA_URL, path)
+        elif isinstance(path, list):  # Handle the case where image_storage is a list of dicts
+            from django.conf import settings
+            html = ""
+            for img_data in path:
+                if isinstance(img_data, dict) and 'path' in img_data:
+                    img_path = img_data.get('path')
+                    html += format_html('<img src="{}{}" style="max-width:300px; max-height:300px; object-fit:contain; margin-right:10px;" />',
+                                        settings.MEDIA_URL, img_path)
+            return html if html else "No valid images"
+        return "Image not available"
+    submission_image_preview.short_description = "Uploaded Image"
+
+    def temporary_images_preview(self, obj):
+        """Display preview of uploaded images in the admin"""
+        if not obj.additional_details or 'image_storage' not in obj.additional_details:
+            return "No images uploaded"
+
+        html = "<div style='display: flex; flex-wrap: wrap; gap: 10px;'>"
+        for img_data in obj.additional_details['image_storage']:
+            path = img_data.get('path')
+            caption = img_data.get('caption', '')
+            is_primary = img_data.get('is_primary', False)
+            primary_label = "<span style='color:green; font-weight:bold;'>Primary</span>" if is_primary else ""
+
+            if path:
+                from django.conf import settings
+                from django.templatetags.static import static
+
+                html += f"""
+                <div style='text-align:center; border:1px solid #ddd; padding:10px; border-radius:5px;'>
+                    <img src="{settings.MEDIA_URL}{path}" style='max-width:200px; max-height:200px; object-fit:contain;' />
+                    <div>{caption} {primary_label}</div>
+                </div>
+                """
+        html += "</div>"
+        return format_html(html)
+    temporary_images_preview.short_description = "Uploaded Images"
 
     def additional_details_formatted(self, obj):
         """Format the JSON data for display in admin"""
@@ -173,7 +293,22 @@ class PlantSubmissionAdmin(admin.ModelAdmin):
         return super().render_change_form(request, context, add, change, form_url, obj)
 
     def save_model(self, request, obj, form, change):
-        """Override save method to handle status changes"""
+        """Override save method to handle both image uploads and status changes"""
+        # Handle image uploads directly from the form
+        image = form.cleaned_data.get('image')
+        if image:
+            # Store image in a temporary folder
+            filename = f"submission_{os.path.basename(image.name)}"
+            path = default_storage.save(
+                f"temp_submissions/{filename}", ContentFile(image.read()))
+
+            # Add the image path to additional_details
+            if not obj.additional_details:
+                obj.additional_details = {}
+
+            obj.additional_details['image_storage'] = path
+
+        # Handle status changes (existing code)
         if change and 'status' in form.changed_data:
             # Get the original object from the database to check previous status
             try:
@@ -185,18 +320,19 @@ class PlantSubmissionAdmin(admin.ModelAdmin):
                         # Create plant using direct SQL
                         cursor = connection.cursor()
 
-                        # Create SQL for insertion
+                        # Create SQL for insertion, now including description
                         sql = f"""
                         INSERT INTO api_plant (
                             name_arabic, name_english, name_scientific, 
-                            family_id, classification, seed_shape_arabic, 
+                            family_id, classification, description, seed_shape_arabic, 
                             seed_shape_english, cotyledon_type, flower_type
                         ) VALUES (
                             '{obj.name_arabic.replace("'", "''")}', 
                             '{(obj.name_english or "").replace("'", "''")}', 
                             '{obj.name_scientific.replace("'", "''")}',
                             {obj.family_id}, 
-                            '{obj.classification.replace("'", "''")}', 
+                            '{obj.classification.replace("'", "''")}',
+                            '{(obj.description or "").replace("'", "''")}',
                             '{obj.seed_shape_arabic.replace("'", "''")}',
                             '{(obj.seed_shape_english or "").replace("'", "''")}', 
                             '{obj.cotyledon_type}', 
@@ -210,8 +346,30 @@ class PlantSubmissionAdmin(admin.ModelAdmin):
                         # Retrieve the plant to use in related objects
                         plant = Plant.objects.get(id=plant_id)
 
-                        # Create flower records based on type
+                        # Process the image if available
                         details = obj.additional_details or {}
+                        if 'image_storage' in details:
+                            from django.core.files import File
+
+                            path = details['image_storage']
+                            if path:
+                                try:
+                                    # Get the full path to the file
+                                    full_path = os.path.join(
+                                        settings.MEDIA_ROOT, path)
+
+                                    # Add the image to the plant
+                                    with open(full_path, 'rb') as img_file:
+                                        filename = os.path.basename(path)
+                                        plant.image.save(
+                                            filename, File(img_file), save=False)
+
+                                    # Delete temporary file after saving the plant
+                                    if os.path.exists(full_path):
+                                        os.remove(full_path)
+                                except Exception as e:
+                                    # Log the error but continue
+                                    obj.admin_notes += f"\nError processing image {path}: {str(e)}"
 
                         if obj.flower_type == 'BOTH':
                             male_data = details.get('male_flower', {})
@@ -328,37 +486,57 @@ class PlantSubmissionAdmin(admin.ModelAdmin):
 
         for submission in pending_submissions:
             try:
-                # Use direct SQL insertion
-                cursor = connection.cursor()
+                # Create a new Plant instance directly
+                plant = Plant(
+                    name_arabic=submission.name_arabic,
+                    name_english=submission.name_english,
+                    name_scientific=submission.name_scientific,
+                    family=submission.family,
+                    classification=submission.classification,
+                    description=submission.description,
+                    seed_shape_arabic=submission.seed_shape_arabic,
+                    seed_shape_english=submission.seed_shape_english,
+                    cotyledon_type=submission.cotyledon_type,
+                    flower_type=submission.flower_type
+                )
 
-                # Create SQL for insertion
-                sql = f"""
-                INSERT INTO api_plant (
-                    name_arabic, name_english, name_scientific, 
-                    family_id, classification, seed_shape_arabic, 
-                    seed_shape_english, cotyledon_type, flower_type
-                ) VALUES (
-                    '{submission.name_arabic.replace("'", "''")}', 
-                    '{(submission.name_english or "").replace("'", "''")}', 
-                    '{submission.name_scientific.replace("'", "''")}',
-                    {submission.family_id}, 
-                    '{submission.classification.replace("'", "''")}', 
-                    '{submission.seed_shape_arabic.replace("'", "''")}',
-                    '{(submission.seed_shape_english or "").replace("'", "''")}', 
-                    '{submission.cotyledon_type}', 
-                    '{submission.flower_type}'
-                ) RETURNING id;
-                """
+                # Process the image if available
+                details = submission.additional_details or {}
+                if 'image_storage' in details:
+                    from django.core.files import File
+                    import os
+                    from django.conf import settings
 
-                cursor.execute(sql)
-                plant_id = cursor.fetchone()[0]
+                    path = details['image_storage']
+                    if path:
+                        try:
+                            # Get the full path to the file
+                            full_path = os.path.join(settings.MEDIA_ROOT, path)
 
-                # Retrieve the plant to use in related objects
-                plant = Plant.objects.get(id=plant_id)
+                            # Add the image to the plant
+                            with open(full_path, 'rb') as img_file:
+                                filename = os.path.basename(path)
+                                plant.image.save(
+                                    filename, File(img_file), save=False)
+
+                            # Delete the temporary file after saving the plant
+                            # (We'll delete it after saving the plant instance)
+                        except Exception as e:
+                            # Log the error but continue
+                            submission.admin_notes += f"\nError processing image {path}: {str(e)}"
+
+                # Save the plant
+                plant.save()
+
+                # Delete the temporary image file if it exists
+                if 'image_storage' in details:
+                    path = details['image_storage']
+                    if path:
+                        full_path = os.path.join(settings.MEDIA_ROOT, path)
+                        if os.path.exists(full_path):
+                            os.remove(full_path)
 
                 # Create flower records based on type
-                details = submission.additional_details or {}
-
                 if submission.flower_type == 'BOTH':
                     male_data = details.get('male_flower', {})
                     female_data = details.get('female_flower', {})
@@ -401,7 +579,7 @@ class PlantSubmissionAdmin(admin.ModelAdmin):
                     herm_data = details.get('hermaphrodite_flower', {})
 
                     if herm_data:
-                        herm_flower = HermaphroditeFlower.objects.create(
+                        HermaphroditeFlower.objects.create(
                             plant=plant,
                             sepal_arrangement=herm_data.get(
                                 'sepal_arrangement', 'RANGE'),
