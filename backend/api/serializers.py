@@ -2,7 +2,7 @@ from rest_framework import serializers
 from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
 from .models import (
-    Profile, Category, Post,
+    PlantLocation, Profile, Category, Post,
     PlantFamily, Plant,
     MaleFlower, FemaleFlower, HermaphroditeFlower, PlantSubmission
 )
@@ -313,3 +313,29 @@ class PlantSubmissionSerializer(serializers.ModelSerializer):
 
         # Create the plant submission
         return super().create(validated_data)
+
+
+class PlantLocationSerializer(serializers.ModelSerializer):
+    """Serializer for plant location data"""
+    user = serializers.HiddenField(default=serializers.CurrentUserDefault())
+    plant_name = serializers.SerializerMethodField(read_only=True)
+    plant_image_url = serializers.SerializerMethodField(read_only=True)
+    
+    class Meta:
+        model = PlantLocation
+        fields = [
+            'id', 'plant', 'plant_name', 'plant_image_url', 'user', 'latitude', 
+            'longitude', 'quantity', 'notes', 'created_at'
+        ]
+        read_only_fields = ['id', 'created_at']
+    
+    def get_plant_name(self, obj):
+        return obj.plant.name_arabic
+    
+    def get_plant_image_url(self, obj):
+        if obj.plant.image:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.plant.image.url)
+            return obj.plant.image.url
+        return None

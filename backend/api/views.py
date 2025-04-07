@@ -4,18 +4,19 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from django.contrib.auth import authenticate
+from django.db.models import Sum, Count
 from rest_framework_simplejwt.tokens import RefreshToken
 from django_filters.rest_framework import DjangoFilterBackend
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
 from .models import (
-    Profile, Category, Post,
+    PlantLocation, Profile, Category, Post,
     PlantFamily, Plant,
     MaleFlower, FemaleFlower, HermaphroditeFlower, PlantSubmission
 )
 from .serializers import (
-    UserRegistrationSerializer, UserLoginSerializer,
+    PlantLocationSerializer, UserRegistrationSerializer, UserLoginSerializer,
     PlantFamilySerializer, PlantListSerializer, PlantDetailSerializer,
     PlantSubmissionSerializer, MaleFlowerSubmissionSerializer,
     FemaleFlowerSubmissionSerializer, HermaphroditeFlowerSubmissionSerializer
@@ -254,3 +255,75 @@ def search_plants(request):
     serializer = PlantListSerializer(
         queryset, many=True, context={'request': request})
     return Response(serializer.data)
+
+
+class PlantLocationList(generics.ListCreateAPIView):
+    """API view to create and list plant locations"""
+    serializer_class = PlantLocationSerializer
+    permission_classes = [IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = ['plant']
+    search_fields = ['plant__name_arabic', 'plant__name_english', 'plant__name_scientific', 'notes']
+    ordering_fields = ['created_at', 'quantity']
+    
+    def get_queryset(self):
+        """Return locations submitted by the authenticated user"""
+        return PlantLocation.objects.filter(user=self.request.user)
+
+class PlantLocationDetail(generics.RetrieveUpdateDestroyAPIView):
+    """API view to retrieve, update or delete a plant location"""
+    serializer_class = PlantLocationSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        """Return locations submitted by the authenticated user"""
+        return PlantLocation.objects.filter(user=self.request.user)
+
+# Add this function-based view for retrieving all locations for a specific plant
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def plant_locations_by_plant(request, plant_id):
+    """Get all locations for a specific plant"""
+    locations = PlantLocation.objects.filter(plant_id=plant_id)
+    # Aggregate the total quantity across all locations
+    total_count = locations.aggregate(total=Sum('quantity'))['total'] or 0
+    # Count the number of unique users who have spotted this plant
+    unique_users = locations.values('user').distinct().count()
+    
+    serializer = PlantLocationSerializer(
+        locations, many=True, context={'request': request}
+    )
+    return Response({
+        'total_locations': locations.count(),
+        'total_plants_found': total_count,
+        'unique_spotters': unique_users,
+        'locations': serializer.data
+    })
+
+# Add this function-based view for user stats
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def user_location_stats(request):
+    """Get statistics for the authenticated user's plant locations"""
+    user_locations = PlantLocation.objects.filter(user=request.user)
+    total_plants = user_locations.aggregate(total=Sum('quantity'))['total'] or 0
+    unique_plants = user_locations.values('plant').distinct().count()
+    
+    # Get most recent locations
+    recent_locations = user_locations.order_by('-created_at')[:5]
+    recent_serializer = PlantLocationSerializer(
+        recent_locations, many=True, context={'request': request}
+    )
+    
+    # Get plants by count (most spotted)
+    plant_counts = user_locations.values('plant', 'plant__name_arabic') \
+        .annotate(count=Sum('quantity')) \
+        .order_by('-count')[:5]
+    
+    return Response({
+        'total_locations': user_locations.count(),
+        'total_plants_found': total_plants,
+        'unique_plants': unique_plants,
+        'recent_locations': recent_serializer.data,
+        'most_spotted_plants': plant_counts
+    })

@@ -404,3 +404,43 @@ class PlantSubmission(models.Model):
 
     def __str__(self):
         return f"{self.name_arabic} - {self.get_status_display()}"
+
+
+class PlantLocation(models.Model):
+    """Model to track plant locations spotted by users"""
+    plant = models.ForeignKey(
+        Plant, on_delete=models.CASCADE, related_name='locations',
+        verbose_name="Plant / النبات"
+    )
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name='plant_locations',
+        verbose_name="Submitted by / قدمت من قبل"
+    )
+    latitude = models.DecimalField(
+        max_digits=9, decimal_places=6,
+        verbose_name="Latitude / خط العرض"
+    )
+    longitude = models.DecimalField(
+        max_digits=9, decimal_places=6,
+        verbose_name="Longitude / خط الطول"
+    )
+    quantity = models.PositiveIntegerField(
+        default=1,
+        verbose_name="Quantity / الكمية"
+    )
+    notes = models.TextField(
+        blank=True,
+        verbose_name="Notes / ملاحظات"
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name="Created At / تم إنشاؤه في"
+    )
+    
+    class Meta:
+        verbose_name = "Plant Location"
+        verbose_name_plural = "Plant Locations"
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.plant.name_arabic} at ({self.latitude}, {self.longitude})"

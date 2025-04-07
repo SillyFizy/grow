@@ -37,4 +37,14 @@ urlpatterns = [
 
     # Search endpoint
     path('plants/search/', views.search_plants, name='search-plants'),
+
+    # Plant location endpoints
+    path('plant-locations/', views.PlantLocationList.as_view(),
+         name='plant-location-list'),
+    path('plant-locations/<int:pk>/', views.PlantLocationDetail.as_view(),
+         name='plant-location-detail'),
+    path('plants/<int:plant_id>/locations/',
+         views.plant_locations_by_plant, name='plant-locations-by-plant'),
+    path('users/me/location-stats/', views.user_location_stats,
+         name='user-location-stats'),
 ]

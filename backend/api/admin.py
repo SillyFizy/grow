@@ -11,7 +11,7 @@ from django.core.files.base import ContentFile
 from django.conf import settings
 
 from .models import (
-    Profile, Category, Post,
+    PlantLocation, Profile, Category, Post,
     PlantFamily, Plant,
     MaleFlower, FemaleFlower, HermaphroditeFlower,
     PlantSubmission
@@ -657,3 +657,29 @@ try:
     admin.site.register(OutstandingToken, CustomOutstandingTokenAdmin)
 except (ImportError, admin.sites.NotRegistered):
     pass
+
+
+@admin.register(PlantLocation)
+class PlantLocationAdmin(admin.ModelAdmin):
+    list_display = ('plant', 'user', 'latitude', 'longitude', 'quantity', 'created_at')
+    list_filter = ('plant', 'user', 'created_at')
+    search_fields = ('plant__name_arabic', 'plant__name_scientific', 'user__username', 'notes')
+    readonly_fields = ('created_at',)
+    date_hierarchy = 'created_at'
+    
+    fieldsets = (
+        ('Plant Information', {
+            'fields': ('plant',)
+        }),
+        ('Location Details', {
+            'fields': ('latitude', 'longitude', 'quantity', 'notes')
+        }),
+        ('Submission Info', {
+            'fields': ('user', 'created_at')
+        }),
+    )
+    
+    def get_queryset(self, request):
+        """Add annotation for the total plants found in each location record"""
+        queryset = super().get_queryset(request)
+        return queryset
