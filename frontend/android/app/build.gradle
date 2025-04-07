@@ -5,7 +5,7 @@ plugins {
 }
 
 android {
-    namespace "com.example.flutter_healthcare_app"
+    namespace "com.example.grow"
     compileSdkVersion 34
     ndkVersion  = "25.1.8937393"
 
