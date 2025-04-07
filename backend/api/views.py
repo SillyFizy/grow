@@ -8,6 +8,7 @@ from django.db.models import Sum, Count
 from rest_framework_simplejwt.tokens import RefreshToken
 from django_filters.rest_framework import DjangoFilterBackend
 from drf_yasg.utils import swagger_auto_schema
+from django.contrib.auth.models import User
 from drf_yasg import openapi
 
 from .models import (
@@ -45,10 +46,20 @@ def register_user(request):
 def login_user(request):
     serializer = UserLoginSerializer(data=request.data)
     if serializer.is_valid():
-        user = authenticate(
-            username=serializer.validated_data['username'],
-            password=serializer.validated_data['password']
-        )
+        login_field = serializer.validated_data['login']
+        password = serializer.validated_data['password']
+        
+        # Try to authenticate with username
+        user = authenticate(username=login_field, password=password)
+        
+        # If username authentication fails, try with email
+        if user is None:
+            try:
+                user_obj = User.objects.get(email=login_field)
+                user = authenticate(username=user_obj.username, password=password)
+            except User.DoesNotExist:
+                user = None
+                
         if user:
             refresh = RefreshToken.for_user(user)
             return Response({
