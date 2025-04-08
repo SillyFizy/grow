@@ -1,15 +1,79 @@
 import 'package:flutter/material.dart';
 import '../widgets/BottomNavBar.dart';
+import '../services/api_service.dart';
 
-class PlantDetailsScreen extends StatelessWidget {
+class PlantDetailsScreen extends StatefulWidget {
   final String title;
   final String imageAsset;
+  final String? description;
 
   const PlantDetailsScreen({
     super.key,
     required this.title,
     required this.imageAsset,
+    this.description,
   });
+
+  @override
+  State<PlantDetailsScreen> createState() => _PlantDetailsScreenState();
+}
+
+class _PlantDetailsScreenState extends State<PlantDetailsScreen> {
+  bool _isLoading = false;
+  String? _errorMessage;
+  List<dynamic> _plants = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchPlantsByClassification();
+  }
+
+  Future<void> _fetchPlantsByClassification() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    // Extract classification value from the title
+    // This assumes the title format is consistent with how we map classifications
+    String classification = '';
+    if (widget.title == 'نباتات برية') {
+      classification = 'بري';
+    } else if (widget.title == 'نباتات اقتصادية') {
+      classification = 'اقتصادي';
+    } else if (widget.title == 'نباتات طبية') {
+      classification = 'طبي';
+    } else if (widget.title == 'نباتات الزينة') {
+      classification = 'نباتات الزينة';
+    }
+
+    try {
+      final response =
+          await ApiService.fetchPlantsByClassification(classification);
+
+      setState(() {
+        _isLoading = false;
+        if (response.success) {
+          // Check if response includes a results array
+          if (response.data != null && response.data['results'] != null) {
+            _plants = response.data['results'];
+          } else if (response.data is List) {
+            _plants = response.data;
+          } else {
+            _plants = [];
+          }
+        } else {
+          _errorMessage = response.errorMessage ?? 'Failed to load plants';
+        }
+      });
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+        _errorMessage = 'An error occurred: ${e.toString()}';
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -70,7 +134,7 @@ class PlantDetailsScreen extends StatelessWidget {
                           ),
                         ),
                         Text(
-                          title,
+                          widget.title,
                           style: const TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
@@ -88,14 +152,14 @@ class PlantDetailsScreen extends StatelessWidget {
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(20),
                       child: Image.asset(
-                        imageAsset,
+                        widget.imageAsset,
                         fit: BoxFit.cover,
                         width: double.infinity,
-                        height: 400, // Make image take up more space
+                        height: 220,
                         errorBuilder: (context, error, stackTrace) {
                           print('Error loading plant image: $error');
                           return Container(
-                            height: 280,
+                            height: 220,
                             decoration: BoxDecoration(
                               color: Colors.green.withOpacity(0.1),
                               borderRadius: BorderRadius.circular(20),
@@ -115,7 +179,7 @@ class PlantDetailsScreen extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(
                         horizontal: 20.0, vertical: 10.0),
                     child: Text(
-                      'النباتات السامة هي نباتات تحتوي على مركبات كيميائية يمكن أن تسبب أضرارا صحية عند لمسها، ابتلاعها أو استنشاقها. تختلف خطورة السموم بين النباتات: بعضها يسبب تهيجا بسيطا في الجلد، بينما قد يكون البعض الآخر قاتلا. يجب الحذر عند تناوله. مثل نبات الدفلى أو الزينيب الإبري',
+                      widget.description ?? 'لا يوجد وصف متاح لهذا التصنيف.',
                       style: const TextStyle(
                         fontSize: 14,
                         height: 1.5,
@@ -125,6 +189,32 @@ class PlantDetailsScreen extends StatelessWidget {
                       textAlign: TextAlign.right,
                     ),
                   ),
+
+                  // Plants in this category section
+                  if (_isLoading)
+                    const Padding(
+                      padding: EdgeInsets.all(16.0),
+                      child: Center(child: CircularProgressIndicator()),
+                    )
+                  else if (_errorMessage != null)
+                    Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Text(
+                        'خطأ في تحميل النباتات: $_errorMessage',
+                        style: const TextStyle(color: Colors.red),
+                        textAlign: TextAlign.center,
+                      ),
+                    )
+                  else if (_plants.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.all(16.0),
+                      child: Text(
+                        'لا توجد نباتات في هذه الفئة حالياً.',
+                        textAlign: TextAlign.center,
+                      ),
+                    )
+                  else
+                    _buildPlantsList(),
 
                   // Read more button and heart icon
                   Padding(
@@ -190,6 +280,105 @@ class PlantDetailsScreen extends StatelessWidget {
 
           // Bottom navigation bar
           const BottomNavBar(selectedIndex: 3),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPlantsList() {
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Padding(
+            padding: EdgeInsets.only(right: 8.0, bottom: 12.0),
+            child: Text(
+              'النباتات في هذه الفئة',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+              textAlign: TextAlign.right,
+            ),
+          ),
+          ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount:
+                _plants.length > 5 ? 5 : _plants.length, // Show max 5 plants
+            itemBuilder: (context, index) {
+              final plant = _plants[index];
+              return Card(
+                margin: const EdgeInsets.only(bottom: 8.0),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: ListTile(
+                  contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16.0, vertical: 8.0),
+                  title: Text(
+                    plant['name_arabic'] ?? 'اسم غير معروف',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                    textDirection: TextDirection.rtl,
+                  ),
+                  subtitle: Text(
+                    plant['name_scientific'] ?? '',
+                    style: const TextStyle(fontStyle: FontStyle.italic),
+                  ),
+                  leading: plant['image_url'] != null
+                      ? ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.network(
+                            plant['image_url'],
+                            width: 50,
+                            height: 50,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              return Container(
+                                width: 50,
+                                height: 50,
+                                color: Colors.green.withOpacity(0.1),
+                                child:
+                                    const Icon(Icons.eco, color: Colors.green),
+                              );
+                            },
+                          ),
+                        )
+                      : Container(
+                          width: 50,
+                          height: 50,
+                          decoration: BoxDecoration(
+                            color: Colors.green.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(Icons.eco, color: Colors.green),
+                        ),
+                  trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                  onTap: () {
+                    // TODO: Navigate to individual plant detail screen
+                    print('Tapped on plant: ${plant['name_arabic']}');
+                  },
+                ),
+              );
+            },
+          ),
+          if (_plants.length > 5)
+            Center(
+              child: TextButton(
+                onPressed: () {
+                  // TODO: Navigate to full list view
+                  print('Show all ${_plants.length} plants');
+                },
+                child: const Text(
+                  'عرض الكل',
+                  style: TextStyle(
+                    color: Color(0xFF96C994),
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );

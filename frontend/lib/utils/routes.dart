@@ -39,13 +39,15 @@ class Routes {
 
   // Helper method for navigating to plant details with arguments
   static void navigateToPlantDetails(
-      BuildContext context, String title, String imageAsset) {
+      BuildContext context, String title, String imageAsset,
+      [String? description]) {
     print('Navigating to plant details with title: $title, image: $imageAsset');
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => PlantDetailsScreen(
           title: title,
           imageAsset: imageAsset,
+          description: description,
         ),
       ),
     );

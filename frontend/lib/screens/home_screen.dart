@@ -1,14 +1,80 @@
 import 'package:flutter/material.dart';
 import '../widgets/BottomNavBar.dart';
 import '../utils/routes.dart';
+import '../models/plant_classification.dart';
+import '../services/api_service.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    print('Building HomeScreen');
+  State<HomeScreen> createState() => _HomeScreenState();
+}
 
+class _HomeScreenState extends State<HomeScreen> {
+  bool _isLoading = false;
+  String? _errorMessage;
+  List<PlantClassification> _classifications = [];
+
+  @override
+  void initState() {
+    super.initState();
+    // Initialize predefined classifications
+    _initializeClassifications();
+  }
+
+  void _initializeClassifications() {
+    // These are the predefined classifications with descriptions
+    setState(() {
+      _classifications = [
+        PlantClassification(
+            title: 'نباتات برية',
+            classification: 'بري',
+            imageAsset: 'homescreen_p1.png',
+            description:
+                'النباتات البرية هي نباتات تنمو طبيعياً دون تدخل بشري، وتتكيف مع ظروف بيئتها المحلية. تتميز بقدرتها على التحمل والبقاء في ظروف قاسية، وتشكل جزءاً أساسياً من النظم البيئية الطبيعية، توفر الغذاء والمأوى للحياة البرية.'),
+        PlantClassification(
+            title: 'نباتات اقتصادية',
+            classification: 'اقتصادي',
+            imageAsset: 'homescreen_p2.png',
+            description:
+                'النباتات الاقتصادية هي نباتات تزرع لقيمتها التجارية والاقتصادية. تشمل المحاصيل الغذائية، والألياف، والأخشاب، والزيوت، والأصباغ. تساهم هذه النباتات بشكل كبير في الاقتصاد المحلي والعالمي، وتوفر الموارد الأساسية للعديد من الصناعات والاحتياجات البشرية.'),
+        PlantClassification(
+            title: 'نباتات طبية',
+            classification: 'طبي',
+            imageAsset: 'homescreen_p3.png',
+            description:
+                'النباتات الطبية هي نباتات تحتوي على مواد فعالة تستخدم في العلاج والوقاية من الأمراض. استخدمت هذه النباتات في الطب التقليدي منذ آلاف السنين، وتشكل أساسًا للعديد من الأدوية الحديثة. تتميز بخصائصها العلاجية المتنوعة، من مضادات الالتهاب إلى المضادات الحيوية الطبيعية.'),
+        PlantClassification(
+            title: 'نباتات الزينة',
+            classification: 'نباتات الزينة',
+            imageAsset: 'homescreen_p4.png',
+            description:
+                'نباتات الزينة هي نباتات تزرع لجمالها وقيمتها الجمالية. تشمل الأزهار والشجيرات والأشجار التي تستخدم لتزيين الحدائق والمنازل والمساحات العامة. تضيف هذه النباتات الجمال إلى البيئة المحيطة، وتحسن جودة الهواء، وتساعد على تخفيف التوتر وتعزيز الراحة النفسية.'),
+      ];
+    });
+  }
+
+  // Function to fetch plants for a specific classification
+  Future<void> _fetchPlantsByClassification(String classification) async {
+    try {
+      final response =
+          await ApiService.fetchPlantsByClassification(classification);
+      if (response.success) {
+        // Process the data if needed
+        print(
+            'Successfully fetched plants for classification: $classification');
+        print('Number of plants: ${response.data['results']?.length ?? 0}');
+      } else {
+        print('Error fetching plants: ${response.errorMessage}');
+      }
+    } catch (e) {
+      print('Exception fetching plants: $e');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
         child: Column(
@@ -61,7 +127,6 @@ class HomeScreen extends StatelessWidget {
             // Bottom navigation bar
             Builder(
               builder: (context) {
-                print('Building BottomNavBar in HomeScreen with index 3');
                 return const BottomNavBar(selectedIndex: 3);
               },
             ),
@@ -217,118 +282,114 @@ class HomeScreen extends StatelessWidget {
   }
 
   Widget _buildCategoriesGrid(BuildContext context) {
-    print('Building categories grid in HomeScreen');
-
-    final categories = [
-      {
-        'title': 'النباتات الجنينة',
-        'image': 'homescreen_p1.png',
-        'detailImage': 'homescreen_p1.png'
-      },
-      {
-        'title': 'النباتات السامة',
-        'image': 'homescreen_p2.png',
-        'detailImage': 'homescreen_p2.png'
-      },
-      {
-        'title': 'النباتات المعمرة',
-        'image': 'homescreen_p3.png',
-        'detailImage': 'homescreen_p3.png'
-      },
-      {
-        'title': 'منتجات طبيعية',
-        'image': 'homescreen_p4.png',
-        'detailImage': 'homescreen_p4.png'
-      },
-      {
-        'title': 'تحت منطق الزراع',
-        'image': 'homescreen_p5.png',
-        'detailImage': 'homescreen_p5.png'
-      },
-      {
-        'title': 'منتجات صديقة البيئة',
-        'image': 'homescreen_p6.png',
-        'detailImage': 'homescreen_p6.png'
-      },
-    ];
-
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
-        childAspectRatio: 0.85, // Adjusted to make room for the text below
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 16,
-      ),
-      itemCount: categories.length,
-      itemBuilder: (context, index) {
-        return GestureDetector(
-          onTap: () {
-            print('Category tapped: ${categories[index]['title']}');
-            // Navigate to plant details screen with category details
-            Routes.navigateToPlantDetails(
-                context,
-                categories[index]['title'] as String,
-                'assets/images/${categories[index]['detailImage']}');
-          },
-          child: Column(
-            children: [
-              // Category image with shadow
-              Expanded(
-                child: Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.grey.withOpacity(0.2),
-                        blurRadius: 6,
-                        spreadRadius: 1,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(16),
-                    child: Image.asset(
-                      'assets/images/${categories[index]['image']}',
-                      fit: BoxFit.cover,
-                      width: double.infinity,
-                      errorBuilder: (context, error, stackTrace) {
-                        print(
-                            'Error loading category image ${categories[index]['image']}: $error');
-                        return Container(
-                          decoration: BoxDecoration(
-                            color: Colors.green.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: const Center(
-                            child: Icon(Icons.eco, color: Colors.green),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ),
-              ),
-              // Category title below the image
-              Padding(
-                padding: const EdgeInsets.only(top: 6.0),
-                child: Text(
-                  categories[index]['title'] as String,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                  ),
-                  textAlign: TextAlign.center,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(
+          padding: EdgeInsets.only(right: 8.0, bottom: 16.0),
+          child: Text(
+            'تصنيفات النباتات',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+            textAlign: TextAlign.right,
           ),
-        );
-      },
+        ),
+        GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            childAspectRatio: 1.1,
+            crossAxisSpacing: 16,
+            mainAxisSpacing: 16,
+          ),
+          itemCount: _classifications.length,
+          itemBuilder: (context, index) {
+            final classification = _classifications[index];
+            return GestureDetector(
+              onTap: () {
+                print('Category tapped: ${classification.title}');
+                // Fetch plants for this classification when tapped
+                _fetchPlantsByClassification(classification.classification);
+                // Navigate to plant details screen with category details
+                Routes.navigateToPlantDetails(
+                    context,
+                    classification.title,
+                    'assets/images/${classification.imageAsset}',
+                    classification.description);
+              },
+              child: _buildCategoryItem(classification),
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCategoryItem(PlantClassification classification) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.2),
+            blurRadius: 6,
+            spreadRadius: 1,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          // Category image
+          Expanded(
+            child: ClipRRect(
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(16),
+                topRight: Radius.circular(16),
+              ),
+              child: Image.asset(
+                'assets/images/${classification.imageAsset}',
+                fit: BoxFit.cover,
+                width: double.infinity,
+                errorBuilder: (context, error, stackTrace) {
+                  print(
+                      'Error loading category image ${classification.imageAsset}: $error');
+                  return Container(
+                    decoration: BoxDecoration(
+                      color: Colors.green.withOpacity(0.1),
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(16),
+                        topRight: Radius.circular(16),
+                      ),
+                    ),
+                    child: const Center(
+                      child: Icon(Icons.eco, color: Colors.green),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+          // Category title
+          Padding(
+            padding: const EdgeInsets.all(12.0),
+            child: Text(
+              classification.title,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
     );
   }
 

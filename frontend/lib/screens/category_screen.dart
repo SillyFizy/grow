@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../widgets/BottomNavBar.dart';
-import '../models/PlantCategory.dart';
 
 class CategoryScreen extends StatelessWidget {
   const CategoryScreen({super.key});
