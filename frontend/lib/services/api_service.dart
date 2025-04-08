@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
@@ -8,11 +9,13 @@ class ApiResponse {
   final bool success;
   final dynamic data;
   final String? errorMessage;
+  final bool isTimeout;
 
   ApiResponse({
     required this.success,
     this.data,
     this.errorMessage,
+    this.isTimeout = false,
   });
 }
 
@@ -24,6 +27,9 @@ class ApiService {
   static const String _loginEndpoint = '/auth/login/';
   static const String _registerEndpoint = '/auth/register/';
   static const String _tokenRefreshEndpoint = '/auth/token/refresh/';
+
+  // API request timeout duration
+  static const Duration _requestTimeout = Duration(seconds: 10);
 
   // Headers
   static Map<String, String> get _headers => {
@@ -41,14 +47,16 @@ class ApiService {
   // Login user
   static Future<ApiResponse> login(String login, String password) async {
     try {
-      final response = await http.post(
-        Uri.parse('$_baseUrl$_loginEndpoint'),
-        headers: _headers,
-        body: jsonEncode({
-          'login': login,
-          'password': password,
-        }),
-      );
+      final response = await http
+          .post(
+            Uri.parse('$_baseUrl$_loginEndpoint'),
+            headers: _headers,
+            body: jsonEncode({
+              'login': login,
+              'password': password,
+            }),
+          )
+          .timeout(_requestTimeout);
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -60,6 +68,11 @@ class ApiService {
           success: true,
           data: data,
         );
+      } else if (response.statusCode == 401) {
+        return ApiResponse(
+          success: false,
+          errorMessage: 'Incorrect username or password',
+        );
       } else {
         final data = jsonDecode(response.body);
         String errorMsg = data['error'] ?? 'Login failed';
@@ -69,6 +82,18 @@ class ApiService {
           errorMessage: errorMsg,
         );
       }
+    } on TimeoutException {
+      return ApiResponse(
+        success: false,
+        errorMessage: 'Connection timed out. Please try again later.',
+        isTimeout: true,
+      );
+    } on SocketException {
+      return ApiResponse(
+        success: false,
+        errorMessage: 'Cannot connect to server. Please check your connection.',
+        isTimeout: true,
+      );
     } catch (e) {
       return ApiResponse(
         success: false,
@@ -85,16 +110,18 @@ class ApiService {
     String password2,
   ) async {
     try {
-      final response = await http.post(
-        Uri.parse('$_baseUrl$_registerEndpoint'),
-        headers: _headers,
-        body: jsonEncode({
-          'username': username,
-          'email': email,
-          'password': password,
-          'password2': password2,
-        }),
-      );
+      final response = await http
+          .post(
+            Uri.parse('$_baseUrl$_registerEndpoint'),
+            headers: _headers,
+            body: jsonEncode({
+              'username': username,
+              'email': email,
+              'password': password,
+              'password2': password2,
+            }),
+          )
+          .timeout(_requestTimeout);
 
       if (response.statusCode == 201) {
         final data = jsonDecode(response.body);
@@ -126,6 +153,18 @@ class ApiService {
           errorMessage: errorMsg,
         );
       }
+    } on TimeoutException {
+      return ApiResponse(
+        success: false,
+        errorMessage: 'Connection timed out. Please try again later.',
+        isTimeout: true,
+      );
+    } on SocketException {
+      return ApiResponse(
+        success: false,
+        errorMessage: 'Cannot connect to server. Please check your connection.',
+        isTimeout: true,
+      );
     } catch (e) {
       return ApiResponse(
         success: false,
@@ -146,13 +185,15 @@ class ApiService {
     }
 
     try {
-      final response = await http.post(
-        Uri.parse('$_baseUrl$_tokenRefreshEndpoint'),
-        headers: _headers,
-        body: jsonEncode({
-          'refresh': refreshToken,
-        }),
-      );
+      final response = await http
+          .post(
+            Uri.parse('$_baseUrl$_tokenRefreshEndpoint'),
+            headers: _headers,
+            body: jsonEncode({
+              'refresh': refreshToken,
+            }),
+          )
+          .timeout(_requestTimeout);
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -170,6 +211,18 @@ class ApiService {
           errorMessage: 'Failed to refresh token',
         );
       }
+    } on TimeoutException {
+      return ApiResponse(
+        success: false,
+        errorMessage: 'Connection timed out. Please try again later.',
+        isTimeout: true,
+      );
+    } on SocketException {
+      return ApiResponse(
+        success: false,
+        errorMessage: 'Cannot connect to server. Please check your connection.',
+        isTimeout: true,
+      );
     } catch (e) {
       return ApiResponse(
         success: false,
@@ -181,12 +234,26 @@ class ApiService {
   // Generic GET request with authentication
   static Future<ApiResponse> get(String endpoint) async {
     try {
-      final response = await http.get(
-        Uri.parse('$_baseUrl$endpoint'),
-        headers: _authHeaders,
-      );
+      final response = await http
+          .get(
+            Uri.parse('$_baseUrl$endpoint'),
+            headers: _authHeaders,
+          )
+          .timeout(_requestTimeout);
 
       return _handleResponse(response);
+    } on TimeoutException {
+      return ApiResponse(
+        success: false,
+        errorMessage: 'Connection timed out. Please try again later.',
+        isTimeout: true,
+      );
+    } on SocketException {
+      return ApiResponse(
+        success: false,
+        errorMessage: 'Cannot connect to server. Please check your connection.',
+        isTimeout: true,
+      );
     } catch (e) {
       return ApiResponse(
         success: false,
@@ -199,13 +266,27 @@ class ApiService {
   static Future<ApiResponse> post(
       String endpoint, Map<String, dynamic> data) async {
     try {
-      final response = await http.post(
-        Uri.parse('$_baseUrl$endpoint'),
-        headers: _authHeaders,
-        body: jsonEncode(data),
-      );
+      final response = await http
+          .post(
+            Uri.parse('$_baseUrl$endpoint'),
+            headers: _authHeaders,
+            body: jsonEncode(data),
+          )
+          .timeout(_requestTimeout);
 
       return _handleResponse(response);
+    } on TimeoutException {
+      return ApiResponse(
+        success: false,
+        errorMessage: 'Connection timed out. Please try again later.',
+        isTimeout: true,
+      );
+    } on SocketException {
+      return ApiResponse(
+        success: false,
+        errorMessage: 'Cannot connect to server. Please check your connection.',
+        isTimeout: true,
+      );
     } catch (e) {
       return ApiResponse(
         success: false,
@@ -218,13 +299,27 @@ class ApiService {
   static Future<ApiResponse> put(
       String endpoint, Map<String, dynamic> data) async {
     try {
-      final response = await http.put(
-        Uri.parse('$_baseUrl$endpoint'),
-        headers: _authHeaders,
-        body: jsonEncode(data),
-      );
+      final response = await http
+          .put(
+            Uri.parse('$_baseUrl$endpoint'),
+            headers: _authHeaders,
+            body: jsonEncode(data),
+          )
+          .timeout(_requestTimeout);
 
       return _handleResponse(response);
+    } on TimeoutException {
+      return ApiResponse(
+        success: false,
+        errorMessage: 'Connection timed out. Please try again later.',
+        isTimeout: true,
+      );
+    } on SocketException {
+      return ApiResponse(
+        success: false,
+        errorMessage: 'Cannot connect to server. Please check your connection.',
+        isTimeout: true,
+      );
     } catch (e) {
       return ApiResponse(
         success: false,
@@ -236,12 +331,26 @@ class ApiService {
   // Generic DELETE request with authentication
   static Future<ApiResponse> delete(String endpoint) async {
     try {
-      final response = await http.delete(
-        Uri.parse('$_baseUrl$endpoint'),
-        headers: _authHeaders,
-      );
+      final response = await http
+          .delete(
+            Uri.parse('$_baseUrl$endpoint'),
+            headers: _authHeaders,
+          )
+          .timeout(_requestTimeout);
 
       return _handleResponse(response);
+    } on TimeoutException {
+      return ApiResponse(
+        success: false,
+        errorMessage: 'Connection timed out. Please try again later.',
+        isTimeout: true,
+      );
+    } on SocketException {
+      return ApiResponse(
+        success: false,
+        errorMessage: 'Cannot connect to server. Please check your connection.',
+        isTimeout: true,
+      );
     } catch (e) {
       return ApiResponse(
         success: false,

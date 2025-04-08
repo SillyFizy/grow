@@ -71,8 +71,16 @@ class _LoginScreenState extends State<LoginScreen> {
           Navigator.pushReplacementNamed(context, '/');
         }
       } else {
-        // Check if it's a connection error (which typically starts with "Could not connect")
-        if (response.errorMessage?.startsWith('Could not connect') == true) {
+        // Clear password field on login failure
+        _passwordController.clear();
+
+        // Check if it's a timeout or connection error
+        if (response.isTimeout) {
+          setState(() {
+            _errorMessage = response.errorMessage;
+          });
+        } else if (response.errorMessage?.startsWith('Could not connect') ==
+            true) {
           // If there's a connection error, fall back to local authentication
           final isValidLocal = await Storage.validateUser(
             _loginController.text,
@@ -97,14 +105,16 @@ class _LoginScreenState extends State<LoginScreen> {
             });
           }
         } else {
-          // Standard error message for other failures
+          // Handle invalid credentials with better message
           setState(() {
             _errorMessage =
-                response.errorMessage ?? 'Invalid credentials. Try demo:123';
+                response.errorMessage ?? 'Incorrect username or password';
           });
         }
       }
     } catch (e) {
+      _passwordController.clear();
+
       setState(() {
         _errorMessage = 'An error occurred: ${e.toString()}';
       });
@@ -132,6 +142,9 @@ class _LoginScreenState extends State<LoginScreen> {
       setState(() {
         _errorMessage = 'Passwords do not match';
       });
+      // Clear password fields
+      _registerPasswordController.clear();
+      _confirmPasswordController.clear();
       return;
     }
 
@@ -184,8 +197,13 @@ class _LoginScreenState extends State<LoginScreen> {
           });
         }
       } else {
-        // Check if it's a connection error
-        if (response.errorMessage?.startsWith('Could not connect') == true) {
+        // Check if it's a timeout or connection error
+        if (response.isTimeout) {
+          setState(() {
+            _errorMessage = response.errorMessage;
+          });
+        } else if (response.errorMessage?.startsWith('Could not connect') ==
+            true) {
           // Create account locally only with a warning
           await Storage.saveUser(
             _registerUsernameController.text,
@@ -214,12 +232,20 @@ class _LoginScreenState extends State<LoginScreen> {
             });
           }
         } else {
+          // Clear password fields on error
+          _registerPasswordController.clear();
+          _confirmPasswordController.clear();
+
           setState(() {
             _errorMessage = response.errorMessage;
           });
         }
       }
     } catch (e) {
+      // Clear password fields
+      _registerPasswordController.clear();
+      _confirmPasswordController.clear();
+
       setState(() {
         _errorMessage = 'An error occurred: ${e.toString()}';
       });
