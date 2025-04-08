@@ -14,6 +14,10 @@ DEBUG = os.getenv('DEBUG', 'True') == 'True'
 
 ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '').split(',')
 
+if DEBUG:
+    CORS_ALLOW_HEADERS = ['*']
+    CORS_ALLOW_METHODS = ['*']
+
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
