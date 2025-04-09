@@ -4,6 +4,8 @@ import 'package:latlong2/latlong.dart';
 import 'package:location/location.dart';
 import '../widgets/BottomNavBar.dart';
 import '../services/api_service.dart';
+import '../services/location_service.dart';
+import '../utils/routes.dart';
 
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
@@ -18,11 +20,15 @@ class _MapScreenState extends State<MapScreen> {
   // Default position centered on Iraq (Baghdad)
   static const LatLng _iraqPosition = LatLng(33.3152, 44.3661);
 
+  // Maximum distance (in km) allowed between user and new plant location
+  static const double _maxDistanceKm = 2.0;
+
   LatLng? _currentPosition;
   bool _isLoading = true;
   String? _errorMessage;
   List<Marker> _markers = [];
   final Location _location = Location();
+  bool _isFetchingLocations = false;
 
   @override
   void initState() {
@@ -106,6 +112,12 @@ class _MapScreenState extends State<MapScreen> {
   }
 
   Future<void> _fetchPlantLocations() async {
+    if (_isFetchingLocations) return;
+
+    setState(() {
+      _isFetchingLocations = true;
+    });
+
     try {
       final response = await ApiService.get('/plant-locations/');
 
@@ -120,6 +132,8 @@ class _MapScreenState extends State<MapScreen> {
             final double lng = double.parse(location['longitude'].toString());
             final String plantName = location['plant_name'] ?? 'Unknown Plant';
             final int plantId = location['plant'] ?? 0;
+            final int quantity = location['quantity'] ?? 1;
+            final String? notes = location['notes'];
 
             plantMarkers.add(
               Marker(
@@ -128,8 +142,7 @@ class _MapScreenState extends State<MapScreen> {
                 point: LatLng(lat, lng),
                 child: GestureDetector(
                   onTap: () {
-                    _showPlantInfoDialog(
-                        plantName, plantId, location['quantity']);
+                    _showPlantInfoDialog(plantName, plantId, quantity, notes);
                   },
                   child: const Icon(
                     Icons.location_on,
@@ -142,23 +155,64 @@ class _MapScreenState extends State<MapScreen> {
           }
 
           setState(() {
-            _markers.addAll(plantMarkers);
+            // Keep the user location marker and add plant markers
+            _markers = [
+              if (_currentPosition != null)
+                Marker(
+                  width: 40.0,
+                  height: 40.0,
+                  point: _currentPosition!,
+                  child: const Icon(
+                    Icons.my_location,
+                    color: Colors.blue,
+                    size: 30,
+                  ),
+                ),
+              ...plantMarkers
+            ];
           });
         }
       } else if (mounted) {
-        print('Error fetching plant locations: ${response.errorMessage}');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text(
+                  'Error: ${response.errorMessage ?? "Could not load plant locations"}')),
+        );
       }
     } catch (e) {
-      print('Exception fetching plant locations: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: ${e.toString()}')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isFetchingLocations = false;
+        });
+      }
     }
   }
 
-  void _showPlantInfoDialog(String plantName, int plantId, dynamic quantity) {
+  void _showPlantInfoDialog(
+      String plantName, int plantId, int quantity, String? notes) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: Text(plantName),
-        content: Text('Quantity: ${quantity ?? 'Unknown'}'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Quantity: $quantity'),
+            if (notes != null && notes.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              const Text('Notes:',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
+              Text(notes),
+            ],
+          ],
+        ),
         actions: [
           TextButton(
             onPressed: () {
@@ -169,14 +223,99 @@ class _MapScreenState extends State<MapScreen> {
           TextButton(
             onPressed: () {
               Navigator.of(context).pop();
-              // Navigate to plant details
+              // Navigate to plant details - implementation will depend on your routing setup
+              // You may need to adjust this based on your actual implementation
               Navigator.pushNamed(
                 context,
-                '/plant_details',
+                '/plant_detail', // Adjust this path based on your routes
                 arguments: {'plantId': plantId},
               );
             },
             child: const Text('View Details'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Calculate distance between two points using Haversine formula
+  double _calculateDistance(LatLng point1, LatLng point2) {
+    const Distance distance = Distance();
+    return distance.as(LengthUnit.Kilometer, point1, point2);
+  }
+
+  void _showAddPlantLocationDialog(LatLng position) {
+    // Check if we have the user's current position
+    if (_currentPosition == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Cannot determine your location. Please try again.'),
+        ),
+      );
+      return;
+    }
+
+    // Calculate distance between selected point and user's location
+    final double distanceKm = _calculateDistance(_currentPosition!, position);
+
+    // If distance is too far, show warning
+    if (distanceKm > _maxDistanceKm) {
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Location Too Far'),
+          content: Text(
+              'The selected location is ${distanceKm.toStringAsFixed(2)} km away from your current position. Please select a location within $_maxDistanceKm km.'),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+              },
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
+    // If distance is acceptable, show confirmation dialog
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Add Plant at this Location'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Latitude: ${position.latitude.toStringAsFixed(6)}'),
+            Text('Longitude: ${position.longitude.toStringAsFixed(6)}'),
+            Text(
+                'Distance from your location: ${distanceKm.toStringAsFixed(2)} km'),
+            const SizedBox(height: 8),
+            const Text('Would you like to add a plant at this location?')
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+            },
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              // Navigate to the add plant location form with the selected position
+              Routes.navigateToAddPlantLocation(context, position)
+                  .then((result) {
+                // Refresh plant locations if a new location was added
+                if (result == true) {
+                  _fetchPlantLocations();
+                }
+              });
+            },
+            child: const Text('Continue'),
           ),
         ],
       ),
@@ -245,14 +384,34 @@ class _MapScreenState extends State<MapScreen> {
                 bottom: false,
                 child: Padding(
                   padding: const EdgeInsets.symmetric(vertical: 8.0),
-                  child: Center(
-                    child: Image.asset(
-                      'assets/images/login-logo.png',
-                      height: 50,
-                      errorBuilder: (context, error, stackTrace) {
-                        return const SizedBox(height: 50);
-                      },
-                    ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      if (_isFetchingLocations)
+                        const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                  Color(0xFF96C994)),
+                            )),
+                      const SizedBox(width: 8),
+                      Image.asset(
+                        'assets/images/login-logo.png',
+                        height: 50,
+                        errorBuilder: (context, error, stackTrace) {
+                          return const SizedBox(height: 50);
+                        },
+                      ),
+                      const SizedBox(width: 8),
+                      IconButton(
+                        icon: const Icon(Icons.refresh),
+                        onPressed:
+                            _isFetchingLocations ? null : _fetchPlantLocations,
+                        color: const Color(0xFF96C994),
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -300,50 +459,6 @@ class _MapScreenState extends State<MapScreen> {
         ],
       ),
       bottomNavigationBar: const BottomNavBar(selectedIndex: 2),
-    );
-  }
-
-  void _showAddPlantLocationDialog(LatLng position) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Add Plant at this Location'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Latitude: ${position.latitude.toStringAsFixed(6)}'),
-            Text('Longitude: ${position.longitude.toStringAsFixed(6)}'),
-            const SizedBox(height: 8),
-            const Text('Would you like to add a plant at this location?')
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-            },
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              // For now, just show a message - we'll implement the full form later
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                      'Add plant at: ${position.latitude}, ${position.longitude}'),
-                  action: SnackBarAction(
-                    label: 'OK',
-                    onPressed: () {},
-                  ),
-                ),
-              );
-            },
-            child: const Text('Add Plant'),
-          ),
-        ],
-      ),
     );
   }
 }

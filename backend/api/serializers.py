@@ -334,6 +334,10 @@ class PlantLocationSerializer(serializers.ModelSerializer):
     plant_name = serializers.SerializerMethodField(read_only=True)
     plant_image_url = serializers.SerializerMethodField(read_only=True)
     
+    # Explicitly define latitude and longitude as decimal fields
+    latitude = serializers.DecimalField(max_digits=9, decimal_places=6)
+    longitude = serializers.DecimalField(max_digits=9, decimal_places=6)
+    
     class Meta:
         model = PlantLocation
         fields = [

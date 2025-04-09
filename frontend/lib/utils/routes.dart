@@ -61,10 +61,10 @@ class Routes {
     );
   }
 
-  static void navigateToAddPlantLocation(
+  static Future<dynamic> navigateToAddPlantLocation(
       BuildContext context, LatLng position) {
     print('Navigating to add plant location screen');
-    Navigator.of(context).push(
+    return Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => AddPlantLocationScreen(position: position),
       ),

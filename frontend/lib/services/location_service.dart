@@ -63,20 +63,20 @@ class LocationService {
     required int quantity,
     String? notes,
   }) async {
+    // Round to 6 decimal places
+    final double roundedLatitude = double.parse(latitude.toStringAsFixed(6));
+    final double roundedLongitude = double.parse(longitude.toStringAsFixed(6));
+
     final body = {
       'plant': plantId,
-      'latitude': latitude.toString(),
-      'longitude': longitude.toString(),
+      'latitude': roundedLatitude,
+      'longitude': roundedLongitude,
       'quantity': quantity,
       if (notes != null && notes.isNotEmpty) 'notes': notes,
     };
 
+    print('Submitting location via service: $body');
     return await ApiService.post('/plant-locations/', body);
-  }
-
-  // Get all plant locations
-  static Future<ApiResponse> getAllPlantLocations() async {
-    return await ApiService.get('/plant-locations/');
   }
 
   // Get locations for a specific plant
@@ -87,5 +87,11 @@ class LocationService {
   // Get user's location statistics
   static Future<ApiResponse> getUserLocationStats() async {
     return await ApiService.get('/users/me/location-stats/');
+  }
+
+  // Calculate distance between two points
+  static double calculateDistance(LatLng point1, LatLng point2) {
+    const Distance distance = Distance();
+    return distance.as(LengthUnit.Kilometer, point1, point2);
   }
 }

@@ -309,13 +309,32 @@ class ApiService {
   static Future<ApiResponse> post(
       String endpoint, Map<String, dynamic> data) async {
     try {
+      final url = '$_baseUrl$endpoint';
+      final headers = _authHeaders;
+      final body = jsonEncode(data);
+
+      // Debug logging
+      print('------------ POST REQUEST DEBUG ------------');
+      print('URL: $url');
+      print('Headers: $headers');
+      print('Raw body: $data');
+      print('Serialized body: $body');
+      print('------------------------------------------');
+
       final response = await http
           .post(
-            Uri.parse('$_baseUrl$endpoint'),
-            headers: _authHeaders,
-            body: jsonEncode(data),
+            Uri.parse(url),
+            headers: headers,
+            body: body,
           )
           .timeout(_requestTimeout);
+
+      // Debug logging for response
+      print('------------ POST RESPONSE DEBUG ------------');
+      print('Status code: ${response.statusCode}');
+      print('Response headers: ${response.headers}');
+      print('Response body: ${response.body}');
+      print('-------------------------------------------');
 
       return _handleResponse(response);
     } on TimeoutException {
@@ -331,6 +350,7 @@ class ApiService {
         isTimeout: true,
       );
     } catch (e) {
+      print('Exception in post request: $e');
       return ApiResponse(
         success: false,
         errorMessage: 'Connection error: ${e.toString()}',
