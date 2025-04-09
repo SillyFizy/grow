@@ -42,9 +42,9 @@ class BottomNavBar extends StatelessWidget {
                 print('Navigating to Categories route');
                 Navigator.of(context).pushReplacementNamed('/categories');
                 break;
-              case 2: // Search
-                print('Would navigate to Search - not implemented');
-                // TODO: Implement search navigation when available
+              case 2: // Location (changed from Search)
+                print('Navigating to Map screen');
+                Navigator.of(context).pushReplacementNamed('/map');
                 break;
               case 3: // Home
                 print('Navigating to Home route');
@@ -70,8 +70,9 @@ class BottomNavBar extends StatelessWidget {
             label: 'Weather',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.search),
-            label: 'Search',
+            icon: Icon(
+                Icons.location_on_outlined), // Changed from search to location
+            label: 'Map',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.home_outlined),
