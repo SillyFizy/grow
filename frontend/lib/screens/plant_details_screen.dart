@@ -22,6 +22,7 @@ class _PlantDetailsScreenState extends State<PlantDetailsScreen> {
   bool _isLoading = false;
   String? _errorMessage;
   List<dynamic> _plants = [];
+  bool _showAllPlants = false; // New state to track whether to show all plants
 
   @override
   void initState() {
@@ -286,6 +287,11 @@ class _PlantDetailsScreenState extends State<PlantDetailsScreen> {
   }
 
   Widget _buildPlantsList() {
+    // Determine how many plants to show based on state
+    final displayedPlants = _showAllPlants
+        ? _plants
+        : (_plants.length > 5 ? _plants.sublist(0, 5) : _plants);
+
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: Column(
@@ -306,9 +312,9 @@ class _PlantDetailsScreenState extends State<PlantDetailsScreen> {
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             itemCount:
-                _plants.length > 5 ? 5 : _plants.length, // Show max 5 plants
+                displayedPlants.length, // Show all or just 5 based on state
             itemBuilder: (context, index) {
-              final plant = _plants[index];
+              final plant = displayedPlants[index];
               return Card(
                 margin: const EdgeInsets.only(bottom: 8.0),
                 shape: RoundedRectangleBorder(
@@ -354,7 +360,7 @@ class _PlantDetailsScreenState extends State<PlantDetailsScreen> {
                           ),
                           child: const Icon(Icons.eco, color: Colors.green),
                         ),
-                  trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                  // Removed arrow_forward_ios icon as requested
                   onTap: () {
                     // TODO: Navigate to individual plant detail screen
                     print('Tapped on plant: ${plant['name_arabic']}');
@@ -363,12 +369,14 @@ class _PlantDetailsScreenState extends State<PlantDetailsScreen> {
               );
             },
           ),
-          if (_plants.length > 5)
+          if (_plants.length > 5 && !_showAllPlants)
             Center(
               child: TextButton(
                 onPressed: () {
-                  // TODO: Navigate to full list view
-                  print('Show all ${_plants.length} plants');
+                  // Toggle to show all plants
+                  setState(() {
+                    _showAllPlants = true;
+                  });
                 },
                 child: const Text(
                   'عرض الكل',
