@@ -281,8 +281,7 @@ The admin dashboard provides tools for managing the plant database and moderatin
 ## 🙏 Acknowledgments
 
 - Flutter and Django communities for their excellent documentation
-- Contributors to the open-source packages used in this project
-- Special thanks to botanical experts who provided plant classification guidance
+- Mayar Yasser for her being an amazing person
 
 ## 📄 License
 
