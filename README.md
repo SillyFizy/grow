@@ -1,4 +1,4 @@
-# 🪴 Grow | تطبيق غرو
+# 🪴 Grow | تطبيق نمو
 
 A comprehensive plant classification and tracking system with location-based monitoring features.
 
