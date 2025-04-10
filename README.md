@@ -44,7 +44,7 @@ Grow is a dual-language (Arabic/English) plant classification and tracking appli
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/grow.git
+git clone https://github.com/SillyFizy/grow.git
 cd grow/backend
 ```
 
