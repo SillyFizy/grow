@@ -1,73 +1,55 @@
-🪴 Grow | تطبيق نمو
+# 🪴 Grow | تطبيق غرو
 
 A comprehensive plant classification and tracking system with location-based monitoring features.
 
-📋 Project Overview
+
+## 📋 Project Overview
 
 Grow is a dual-language (Arabic/English) plant classification and tracking application designed to help users identify, learn about, and track plant species. The system combines an authoritative botanical database with crowd-sourced location tracking, creating a valuable resource for researchers, educators, students, and plant enthusiasts.
 
-✨ Key Features
+## ✨ Key Features
 
-Comprehensive Plant Database: Detailed botanical information including scientific names, common names in both Arabic and English, and botanical characteristics
+- **Comprehensive Plant Database**: Detailed botanical information including scientific names, common names in both Arabic and English, and botanical characteristics
+- **Multilingual Support**: Full Arabic and English interface and content
+- **Location Tracking**: Map-based plant sightings with GPS integration
+- **User Contributions**: Submit new plant locations and suggest plant additions
+- **Advanced Search**: Find plants by name, classification, or characteristics
+- **Offline Capability**: Basic functionality when offline with synchronization
+- **Admin Dashboard**: Review and moderate user submissions
 
-Multilingual Support: Full Arabic and English interface and content
+## 🛠️ Technologies
 
-Location Tracking: Map-based plant sightings with GPS integration
+### Backend
+- Django 5.0.2
+- Django REST Framework 3.14.0
+- PostgreSQL
+- JWT Authentication
+- Python 3.8+
 
-User Contributions: Submit new plant locations and suggest plant additions
+### Frontend
+- Flutter
+- Dart
+- Google Maps integration
+- Local storage with Shared Preferences
 
-Advanced Search: Find plants by name, classification, or characteristics
+## 📥 Installation
 
-Offline Capability: Basic functionality when offline with synchronization
+### Prerequisites
+- Python 3.8+
+- PostgreSQL 12.0+
+- Flutter SDK
+- Android Studio or Xcode for mobile deployment
 
-Admin Dashboard: Review and moderate user submissions
+### Backend Setup
 
-🛠️ Technologies
-
-Backend
-
-Django 5.0.2
-
-Django REST Framework 3.14.0
-
-PostgreSQL
-
-JWT Authentication
-
-Python 3.8+
-
-Frontend
-
-Flutter
-
-Dart
-
-Google Maps integration
-
-Local storage with Shared Preferences
-
-📥 Installation
-
-Prerequisites
-
-Python 3.8+
-
-PostgreSQL 12.0+
-
-Flutter SDK
-
-Android Studio or Xcode for mobile deployment
-
-Backend Setup
-
-Clone the repository:
-
+1. Clone the repository:
+```bash
 git clone https://github.com/yourusername/grow.git
 cd grow/backend
+```
 
-
-Create and activate a virtual environment:
-
+2. Create and activate a virtual environment:
+```bash
 python -m venv venv
 
 # On Windows
@@ -75,15 +57,15 @@ venv\Scripts\activate
 
 # On macOS/Linux
 source venv/bin/activate
+```
 
-
-Install dependencies:
-
+3. Install dependencies:
+```bash
 pip install -r requirements.txt
+```
 
-
-Create a .env file in the backend directory with the following variables:
-
+4. Create a `.env` file in the backend directory with the following variables:
+```
 DJANGO_SECRET_KEY=your-secret-key-here
 DEBUG=True
 ALLOWED_HOSTS=localhost,127.0.0.1,10.0.2.2
@@ -95,89 +77,80 @@ DB_USER=postgres
 DB_PASSWORD=yourpassword
 DB_HOST=localhost
 DB_PORT=5432
+```
 
-
-Create the PostgreSQL database:
-
+5. Create the PostgreSQL database:
+```bash
 createdb grow_db
+```
 
-
-Run migrations:
-
+6. Run migrations:
+```bash
 python manage.py migrate
+```
 
-
-Create a superuser:
-
+7. Create a superuser:
+```bash
 python manage.py createsuperuser
+```
 
-
-Start the development server:
-
+8. Start the development server:
+```bash
 python manage.py runserver
+```
 
+### Frontend Setup
 
-Frontend Setup
-
-Navigate to the frontend directory:
-
+1. Navigate to the frontend directory:
+```bash
 cd ../frontend
+```
 
-
-Get Flutter dependencies:
-
+2. Get Flutter dependencies:
+```bash
 flutter pub get
+```
 
+3. Update the API base URL in `lib/config/app_config.dart` if needed
 
-Update the API base URL in lib/config/app_config.dart if needed
-
-Run the app in development mode:
-
+4. Run the app in development mode:
+```bash
 # For Android
 flutter run
 
 # For iOS (requires macOS)
 flutter run -d ios
+```
 
+## 📱 Usage Examples
 
-📱 Usage Examples
+### User Authentication
 
-User Authentication
+1. Open the app and navigate to the login screen
+2. Create a new account or login with existing credentials
+3. Access features requiring authentication such as submitting plant locations
 
-Open the app and navigate to the login screen
+### Browsing Plants
 
-Create a new account or login with existing credentials
+1. Navigate to the Categories screen
+2. Select a plant classification (e.g., "Wild Plants")
+3. Browse through the available plants
+4. Tap on a plant to view detailed information
 
-Access features requiring authentication such as submitting plant locations
+### Adding Plant Locations
 
-Browsing Plants
+1. Navigate to the Map screen
+2. Tap on a location or use your current position
+3. Select a plant from the database
+4. Specify quantity and optional notes
+5. Submit the location
 
-Navigate to the Categories screen
+## 🌐 API Endpoints
 
-Select a plant classification (e.g., "Wild Plants")
-
-Browse through the available plants
-
-Tap on a plant to view detailed information
-
-Adding Plant Locations
-
-Navigate to the Map screen
-
-Tap on a location or use your current position
-
-Select a plant from the database
-
-Specify quantity and optional notes
-
-Submit the location
-
-🌐 API Endpoints
-
-Authentication
+### Authentication
 
 Register a new user:
-
+```bash
 POST /api/auth/register/
 {
   "username": "newuser",
@@ -185,43 +158,43 @@ POST /api/auth/register/
   "password": "securepassword",
   "password2": "securepassword"
 }
-
+```
 
 Login:
-
+```bash
 POST /api/auth/login/
 {
   "login": "username_or_email",
   "password": "yourpassword"
 }
+```
 
-
-Plants
+### Plants
 
 Get all plants:
-
+```bash
 GET /api/plants/
-
+```
 
 Get plants by classification:
-
+```bash
 GET /api/plants/?classification=طبي
-
+```
 
 Search plants:
-
+```bash
 GET /api/plants/search/?q=search_term
-
+```
 
 Get plant details:
-
+```bash
 GET /api/plants/5/
+```
 
-
-Plant Locations
+### Plant Locations
 
 Submit a new plant location:
-
+```bash
 POST /api/plant-locations/
 {
   "plant": 5,
@@ -230,22 +203,23 @@ POST /api/plant-locations/
   "quantity": 3,
   "notes": "Healthy plants found near the river"
 }
-
+```
 
 Get plant locations for a specific plant:
-
+```bash
 GET /api/plants/5/locations/
-
+```
 
 Get user's plant location statistics:
-
+```bash
 GET /api/users/me/location-stats/
+```
 
+## 📌 Example Response
 
-📌 Example Response
+Plant details endpoint (`GET /api/plants/5/`):
 
-Plant details endpoint (GET /api/plants/5/):
-
+```json
 {
   "id": 5,
   "name_arabic": "القطن",
@@ -279,46 +253,43 @@ Plant details endpoint (GET /api/plants/5/):
   },
   "image_url": "http://localhost:8000/media/plants/cotton.jpg"
 }
+```
 
+## 🧪 Running Tests
 
-🧪 Running Tests
-
-Backend Tests
-
+### Backend Tests
+```bash
 cd backend
 python manage.py test
+```
 
-
-Frontend Tests
-
+### Frontend Tests
+```bash
 cd frontend
 flutter test
+```
 
-
-📊 Admin Dashboard
+## 📊 Admin Dashboard
 
 The admin dashboard provides tools for managing the plant database and moderating user submissions:
 
-Access at http://localhost:8000/admin/ after starting the backend server
+1. Access at `http://localhost:8000/admin/` after starting the backend server
+2. Login with the superuser credentials created during setup
+3. Navigate to the Plants section to manage plant records
+4. Review and approve Plant Submissions from users
 
-Login with the superuser credentials created during setup
+## 🙏 Acknowledgments
 
-Navigate to the Plants section to manage plant records
+- Flutter and Django communities for their excellent documentation
+- Contributors to the open-source packages used in this project
+- Special thanks to botanical experts who provided plant classification guidance
 
-Review and approve Plant Submissions from users
-
-🙏 Acknowledgments
-
-Flutter and Django communities for their excellent documentation
-
-Contributors to the open-source packages used in this project
-
-Special thanks to botanical experts who provided plant classification guidance
-
-📄 License
+## 📄 License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
 
-📬 Contact
+---
+
+## 📬 Contact
 
 For questions or suggestions, please open an issue on GitHub or contact the project maintainers.
