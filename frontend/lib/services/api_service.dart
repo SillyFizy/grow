@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
-import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart' show Uint8List, kIsWeb;
 import '../utils/storage.dart';
 import '../config/app_config.dart';
 
@@ -11,12 +11,14 @@ class ApiResponse {
   final dynamic data;
   final String? errorMessage;
   final bool isTimeout;
+  final int? statusCode;
 
   ApiResponse({
     required this.success,
     this.data,
     this.errorMessage,
     this.isTimeout = false,
+    this.statusCode,
   });
 }
 
@@ -34,7 +36,8 @@ class ApiService {
   static const String _searchPlantsEndpoint = '/plants/search/';
 
   // API request timeout duration
-  static const Duration _requestTimeout = Duration(seconds: 10);
+  static const Duration _requestTimeout =
+      Duration(seconds: 15); // Increased timeout
 
   // Headers
   static Map<String, String> get _headers => {
@@ -66,12 +69,33 @@ class ApiService {
     }
   }
 
+  // Debug function to log connection issues
+  static void _logConnectionAttempt(String url,
+      {String method = 'GET', Map<String, dynamic>? data}) {
+    print('========== API CONNECTION DEBUG ==========');
+    print('Attempting $method request to: $url');
+    print('Base URL configuration: $_baseUrl');
+    print('Running as desktop exe: ${AppConfig.isDesktopExe}');
+    print('Platform: ${kIsWeb ? 'Web' : Platform.operatingSystem}');
+
+    if (data != null) {
+      print('Request data: $data');
+    }
+
+    print('Connection help: ${AppConfig.connectionHelp}');
+    print('=========================================');
+  }
+
   // Login user
   static Future<ApiResponse> login(String login, String password) async {
+    final url = '$_baseUrl$_loginEndpoint';
+    _logConnectionAttempt(url,
+        method: 'POST', data: {'login': login, 'password': '***'});
+
     try {
       final response = await http
           .post(
-            Uri.parse('$_baseUrl$_loginEndpoint'),
+            Uri.parse(url),
             headers: _headers,
             body: jsonEncode({
               'login': login,
@@ -89,11 +113,13 @@ class ApiService {
         return ApiResponse(
           success: true,
           data: data,
+          statusCode: response.statusCode,
         );
       } else if (response.statusCode == 401) {
         return ApiResponse(
           success: false,
           errorMessage: 'Incorrect username or password',
+          statusCode: response.statusCode,
         );
       } else {
         final data = _decodeJson(response.body);
@@ -102,21 +128,34 @@ class ApiService {
         return ApiResponse(
           success: false,
           errorMessage: errorMsg,
+          statusCode: response.statusCode,
         );
       }
     } on TimeoutException {
+      print('Connection timed out for login request');
       return ApiResponse(
         success: false,
         errorMessage: 'Connection timed out. Please try again later.',
         isTimeout: true,
       );
-    } on SocketException {
+    } on SocketException catch (e) {
+      print('Socket exception for login request: $e');
       return ApiResponse(
         success: false,
-        errorMessage: 'Cannot connect to server. Please check your connection.',
+        errorMessage:
+            'Cannot connect to server. Please check your connection or firewall settings.',
+        isTimeout: true,
+      );
+    } on http.ClientException catch (e) {
+      print('HTTP client exception for login request: $e');
+      return ApiResponse(
+        success: false,
+        errorMessage:
+            'Connection error: ${e.message}. The server might be unreachable.',
         isTimeout: true,
       );
     } catch (e) {
+      print('Unexpected error during login request: $e');
       return ApiResponse(
         success: false,
         errorMessage: 'Connection error: ${e.toString()}',
@@ -131,10 +170,15 @@ class ApiService {
     String password,
     String password2,
   ) async {
+    final url = '$_baseUrl$_registerEndpoint';
+    _logConnectionAttempt(url,
+        method: 'POST',
+        data: {'username': username, 'email': email, 'password': '***'});
+
     try {
       final response = await http
           .post(
-            Uri.parse('$_baseUrl$_registerEndpoint'),
+            Uri.parse(url),
             headers: _headers,
             body: jsonEncode({
               'username': username,
@@ -154,6 +198,7 @@ class ApiService {
         return ApiResponse(
           success: true,
           data: data,
+          statusCode: response.statusCode,
         );
       } else {
         final data = _decodeJson(response.body);
@@ -173,21 +218,34 @@ class ApiService {
         return ApiResponse(
           success: false,
           errorMessage: errorMsg,
+          statusCode: response.statusCode,
         );
       }
     } on TimeoutException {
+      print('Connection timed out for register request');
       return ApiResponse(
         success: false,
         errorMessage: 'Connection timed out. Please try again later.',
         isTimeout: true,
       );
-    } on SocketException {
+    } on SocketException catch (e) {
+      print('Socket exception for register request: $e');
       return ApiResponse(
         success: false,
-        errorMessage: 'Cannot connect to server. Please check your connection.',
+        errorMessage:
+            'Cannot connect to server. Please check your connection or firewall settings.',
+        isTimeout: true,
+      );
+    } on http.ClientException catch (e) {
+      print('HTTP client exception for register request: $e');
+      return ApiResponse(
+        success: false,
+        errorMessage:
+            'Connection error: ${e.message}. The server might be unreachable.',
         isTimeout: true,
       );
     } catch (e) {
+      print('Unexpected error during register request: $e');
       return ApiResponse(
         success: false,
         errorMessage: 'Connection error: ${e.toString()}',
@@ -206,10 +264,13 @@ class ApiService {
       );
     }
 
+    final url = '$_baseUrl$_tokenRefreshEndpoint';
+    _logConnectionAttempt(url, method: 'POST');
+
     try {
       final response = await http
           .post(
-            Uri.parse('$_baseUrl$_tokenRefreshEndpoint'),
+            Uri.parse(url),
             headers: _headers,
             body: jsonEncode({
               'refresh': refreshToken,
@@ -226,26 +287,32 @@ class ApiService {
         return ApiResponse(
           success: true,
           data: data,
+          statusCode: response.statusCode,
         );
       } else {
         return ApiResponse(
           success: false,
           errorMessage: 'Failed to refresh token',
+          statusCode: response.statusCode,
         );
       }
     } on TimeoutException {
+      print('Connection timed out for token refresh request');
       return ApiResponse(
         success: false,
         errorMessage: 'Connection timed out. Please try again later.',
         isTimeout: true,
       );
-    } on SocketException {
+    } on SocketException catch (e) {
+      print('Socket exception for token refresh request: $e');
       return ApiResponse(
         success: false,
-        errorMessage: 'Cannot connect to server. Please check your connection.',
+        errorMessage:
+            'Cannot connect to server. Please check your connection or firewall settings.',
         isTimeout: true,
       );
     } catch (e) {
+      print('Unexpected error during token refresh: $e');
       return ApiResponse(
         success: false,
         errorMessage: 'Connection error: ${e.toString()}',
@@ -267,8 +334,101 @@ class ApiService {
 
   // Search plants
   static Future<ApiResponse> searchPlants(String query) async {
-    final encodedQuery = Uri.encodeComponent(query);
-    return get('$_searchPlantsEndpoint?q=$encodedQuery');
+    if (query.isEmpty) {
+      return ApiResponse(
+        success: false,
+        errorMessage: 'Search query cannot be empty',
+      );
+    }
+
+    try {
+      final encodedQuery = Uri.encodeComponent(query);
+      final url = '$_baseUrl$_searchPlantsEndpoint?q=$encodedQuery';
+
+      print('Searching plants with query: $query');
+      print('Search URL: $url');
+
+      final response = await http
+          .get(
+            Uri.parse(url),
+            headers: _authHeaders,
+          )
+          .timeout(_requestTimeout);
+
+      // Debug the raw response
+      print('Search response status: ${response.statusCode}');
+      print('Search response type: ${response.headers['content-type']}');
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        try {
+          if (response.body.isEmpty) {
+            return ApiResponse(
+              success: true,
+              data: [], // Empty list for empty response
+            );
+          }
+
+          final data = _decodeJson(response.body);
+
+          // Log the structure of the response data for debugging
+          print('Response data type: ${data.runtimeType}');
+          if (data is Map) {
+            print('Response data keys: ${data.keys.join(', ')}');
+          }
+
+          return ApiResponse(
+            success: true,
+            data: data,
+          );
+        } catch (e) {
+          print('Error decoding search response: $e');
+          print(
+              'Raw response (first 100 chars): ${response.body.substring(0, min(100, response.body.length))}...');
+
+          return ApiResponse(
+            success: false,
+            errorMessage: 'Invalid response format: $e',
+          );
+        }
+      } else {
+        String errorMsg = 'Search failed with status: ${response.statusCode}';
+
+        // Try to parse error message
+        if (response.body.isNotEmpty) {
+          try {
+            final data = _decodeJson(response.body);
+            if (data is Map && data.containsKey('error')) {
+              errorMsg = data['error'];
+            }
+          } catch (_) {
+            // Ignore parsing errors for error responses
+          }
+        }
+
+        return ApiResponse(
+          success: false,
+          errorMessage: errorMsg,
+        );
+      }
+    } on TimeoutException {
+      return ApiResponse(
+        success: false,
+        errorMessage: 'Search timed out. Please try again later.',
+        isTimeout: true,
+      );
+    } on SocketException {
+      return ApiResponse(
+        success: false,
+        errorMessage: 'Network error. Please check your connection.',
+        isTimeout: true,
+      );
+    } catch (e) {
+      print('Exception in searchPlants: $e');
+      return ApiResponse(
+        success: false,
+        errorMessage: 'Search error: $e',
+      );
+    }
   }
 
   // Generic GET request with authentication
@@ -276,6 +436,7 @@ class ApiService {
     try {
       // Try to get the full URL if endpoint already contains base URL
       final url = endpoint.startsWith('http') ? endpoint : '$_baseUrl$endpoint';
+      _logConnectionAttempt(url);
 
       final response = await http
           .get(
@@ -286,18 +447,30 @@ class ApiService {
 
       return _handleResponse(response);
     } on TimeoutException {
+      print('Connection timed out for GET request to $endpoint');
       return ApiResponse(
         success: false,
         errorMessage: 'Connection timed out. Please try again later.',
         isTimeout: true,
       );
-    } on SocketException {
+    } on SocketException catch (e) {
+      print('Socket exception for GET request to $endpoint: $e');
       return ApiResponse(
         success: false,
-        errorMessage: 'Cannot connect to server. Please check your connection.',
+        errorMessage:
+            'Cannot connect to server. Please check your connection or firewall settings.',
+        isTimeout: true,
+      );
+    } on http.ClientException catch (e) {
+      print('HTTP client exception for GET request to $endpoint: $e');
+      return ApiResponse(
+        success: false,
+        errorMessage:
+            'Connection error: ${e.message}. The server might be unreachable.',
         isTimeout: true,
       );
     } catch (e) {
+      print('Unexpected error during GET request to $endpoint: $e');
       return ApiResponse(
         success: false,
         errorMessage: 'Connection error: ${e.toString()}',
@@ -310,6 +483,8 @@ class ApiService {
       String endpoint, Map<String, dynamic> data) async {
     try {
       final url = '$_baseUrl$endpoint';
+      _logConnectionAttempt(url, method: 'POST', data: data);
+
       final headers = _authHeaders;
       final body = jsonEncode(data);
 
@@ -338,19 +513,30 @@ class ApiService {
 
       return _handleResponse(response);
     } on TimeoutException {
+      print('Connection timed out for POST request to $endpoint');
       return ApiResponse(
         success: false,
         errorMessage: 'Connection timed out. Please try again later.',
         isTimeout: true,
       );
-    } on SocketException {
+    } on SocketException catch (e) {
+      print('Socket exception for POST request to $endpoint: $e');
       return ApiResponse(
         success: false,
-        errorMessage: 'Cannot connect to server. Please check your connection.',
+        errorMessage:
+            'Cannot connect to server. Please check your connection or firewall settings.',
+        isTimeout: true,
+      );
+    } on http.ClientException catch (e) {
+      print('HTTP client exception for POST request to $endpoint: $e');
+      return ApiResponse(
+        success: false,
+        errorMessage:
+            'Connection error: ${e.message}. The server might be unreachable.',
         isTimeout: true,
       );
     } catch (e) {
-      print('Exception in post request: $e');
+      print('Exception in post request to $endpoint: $e');
       return ApiResponse(
         success: false,
         errorMessage: 'Connection error: ${e.toString()}',
@@ -362,9 +548,12 @@ class ApiService {
   static Future<ApiResponse> put(
       String endpoint, Map<String, dynamic> data) async {
     try {
+      final url = '$_baseUrl$endpoint';
+      _logConnectionAttempt(url, method: 'PUT', data: data);
+
       final response = await http
           .put(
-            Uri.parse('$_baseUrl$endpoint'),
+            Uri.parse(url),
             headers: _authHeaders,
             body: jsonEncode(data),
           )
@@ -372,18 +561,22 @@ class ApiService {
 
       return _handleResponse(response);
     } on TimeoutException {
+      print('Connection timed out for PUT request to $endpoint');
       return ApiResponse(
         success: false,
         errorMessage: 'Connection timed out. Please try again later.',
         isTimeout: true,
       );
-    } on SocketException {
+    } on SocketException catch (e) {
+      print('Socket exception for PUT request to $endpoint: $e');
       return ApiResponse(
         success: false,
-        errorMessage: 'Cannot connect to server. Please check your connection.',
+        errorMessage:
+            'Cannot connect to server. Please check your connection or firewall settings.',
         isTimeout: true,
       );
     } catch (e) {
+      print('Unexpected error during PUT request to $endpoint: $e');
       return ApiResponse(
         success: false,
         errorMessage: 'Connection error: ${e.toString()}',
@@ -394,27 +587,34 @@ class ApiService {
   // Generic DELETE request with authentication
   static Future<ApiResponse> delete(String endpoint) async {
     try {
+      final url = '$_baseUrl$endpoint';
+      _logConnectionAttempt(url, method: 'DELETE');
+
       final response = await http
           .delete(
-            Uri.parse('$_baseUrl$endpoint'),
+            Uri.parse(url),
             headers: _authHeaders,
           )
           .timeout(_requestTimeout);
 
       return _handleResponse(response);
     } on TimeoutException {
+      print('Connection timed out for DELETE request to $endpoint');
       return ApiResponse(
         success: false,
         errorMessage: 'Connection timed out. Please try again later.',
         isTimeout: true,
       );
-    } on SocketException {
+    } on SocketException catch (e) {
+      print('Socket exception for DELETE request to $endpoint: $e');
       return ApiResponse(
         success: false,
-        errorMessage: 'Cannot connect to server. Please check your connection.',
+        errorMessage:
+            'Cannot connect to server. Please check your connection or firewall settings.',
         isTimeout: true,
       );
     } catch (e) {
+      print('Unexpected error during DELETE request to $endpoint: $e');
       return ApiResponse(
         success: false,
         errorMessage: 'Connection error: ${e.toString()}',
@@ -433,6 +633,7 @@ class ApiService {
         return ApiResponse(
           success: true,
           data: data,
+          statusCode: response.statusCode,
         );
       } catch (e) {
         print('Response decoding error: $e');
@@ -442,6 +643,7 @@ class ApiService {
         return ApiResponse(
           success: false,
           errorMessage: 'Invalid server response format: $e',
+          statusCode: response.statusCode,
         );
       }
     } else if (response.statusCode == 401) {
@@ -449,6 +651,7 @@ class ApiService {
       return ApiResponse(
         success: false,
         errorMessage: 'Authentication failed',
+        statusCode: response.statusCode,
       );
     } else {
       String errorMsg = 'Request failed with status: ${response.statusCode}';
@@ -473,6 +676,7 @@ class ApiService {
       return ApiResponse(
         success: false,
         errorMessage: errorMsg,
+        statusCode: response.statusCode,
       );
     }
   }

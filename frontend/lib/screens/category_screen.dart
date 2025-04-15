@@ -148,10 +148,16 @@ class _CategoryScreenState extends State<CategoryScreen> {
         _isSearching = false;
 
         if (response.success) {
-          if (response.data != null && response.data['results'] != null) {
-            _searchResults = response.data['results'];
-          } else if (response.data is List) {
-            _searchResults = response.data;
+          // Handle different response formats
+          if (response.data != null) {
+            if (response.data is Map && response.data.containsKey('results')) {
+              _searchResults = response.data['results'] ?? [];
+            } else if (response.data is List) {
+              _searchResults = response.data;
+            } else {
+              _searchResults = [];
+              _searchErrorMessage = 'Unexpected response format';
+            }
           } else {
             _searchResults = [];
           }
@@ -171,11 +177,26 @@ class _CategoryScreenState extends State<CategoryScreen> {
 
   // Navigate to plant detail from search results
   void _navigateToPlantDetailFromSearch(dynamic plant) {
-    // If we have a plant ID, create a temporary list with just this plant
-    // and navigate to the detail screen
-    if (plant != null && plant['id'] != null) {
-      final int plantId = plant['id'];
+    if (plant == null) return;
 
+    // Get the plant ID, safely handling different data types
+    dynamic plantIdValue = plant['id'];
+    int plantId;
+
+    // Convert string ID to int if needed
+    if (plantIdValue is String) {
+      plantId = int.tryParse(plantIdValue) ?? 0;
+    } else if (plantIdValue is int) {
+      plantId = plantIdValue;
+    } else {
+      // If ID is neither string nor int, show error and return
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Invalid plant data')),
+      );
+      return;
+    }
+
+    if (plantId > 0) {
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -469,9 +490,18 @@ class _CategoryScreenState extends State<CategoryScreen> {
       itemCount: _searchResults.length,
       itemBuilder: (context, index) {
         final plant = _searchResults[index];
-        final String nameArabic = plant['name_arabic'] ?? 'نبات غير معروف';
-        final String nameScientific = plant['name_scientific'] ?? '';
-        final String? imageUrl = plant['image_url'];
+
+        // Skip invalid items
+        if (plant == null || plant is! Map) {
+          return const SizedBox.shrink();
+        }
+
+        final String nameArabic =
+            plant['name_arabic']?.toString() ?? 'نبات غير معروف';
+        final String nameScientific =
+            plant['name_scientific']?.toString() ?? '';
+        final String? imageUrl = plant['image_url']?.toString();
+        final String classification = plant['classification']?.toString() ?? '';
 
         return Card(
           margin: const EdgeInsets.only(bottom: 12.0),
@@ -540,7 +570,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
                           ),
 
                         // Show classification if available
-                        if (plant['classification'] != null)
+                        if (classification.isNotEmpty)
                           Container(
                             margin: const EdgeInsets.only(top: 4),
                             padding: const EdgeInsets.symmetric(
@@ -550,7 +580,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Text(
-                              plant['classification'],
+                              classification,
                               style: const TextStyle(
                                 fontSize: 12,
                                 color: Color(0xFF96C994),
@@ -591,15 +621,45 @@ class _CategoryScreenState extends State<CategoryScreen> {
       itemCount: _plants.length,
       itemBuilder: (context, index) {
         final plant = _plants[index];
+
+        // Skip invalid items
+        if (plant == null || plant is! Map<String, dynamic>) {
+          return const SizedBox.shrink();
+        }
+
         return _buildPlantItem(plant, index);
       },
     );
   }
 
   Widget _buildPlantItem(Map<String, dynamic> plant, int index) {
-    final int plantId = plant['id'];
-    final String nameArabic = plant['name_arabic'] ?? '';
-    final String? imageUrl = plant['image_url'];
+    // Safely handle the plant ID which could be either string or int
+    dynamic plantIdValue = plant['id'];
+    int plantId;
+
+    if (plantIdValue is String) {
+      plantId = int.tryParse(plantIdValue) ?? 0;
+    } else if (plantIdValue is int) {
+      plantId = plantIdValue;
+    } else {
+      // If we can't get a valid ID, show a placeholder
+      return Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          color: Colors.grey.shade200,
+        ),
+        child: const Center(
+          child: Text(
+            'Invalid data',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: Colors.red),
+          ),
+        ),
+      );
+    }
+
+    final String nameArabic = plant['name_arabic']?.toString() ?? '';
+    final String? imageUrl = plant['image_url']?.toString();
 
     return GestureDetector(
       onTap: () => _navigateToPlantDetail(plantId, index),
